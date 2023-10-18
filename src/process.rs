@@ -1,14 +1,14 @@
+use clap::Parser;
 use std::cell::RefCell;
 use std::env::current_exe;
+use std::future::Future;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
+use std::pin::{pin, Pin};
 use std::process::ExitStatus;
 use std::rc::Rc;
 use std::task::{Context, Poll};
-use clap::Parser;
 
-use futures::prelude::*;
 use tokio::process::*;
 
 pub use self::phoenix::Phoenix;
@@ -51,7 +51,7 @@ pub struct MiningAppArgs {
 impl MiningAppArgs {
     pub fn new(args: &[String]) -> anyhow::Result<Self> {
         let me = "gminer".to_string();
-        Ok(Self::from_iter_safe(std::iter::once(&me).chain(args))?)
+        Ok(Self::try_parse_from(std::iter::once(&me).chain(args))?)
     }
 }
 
@@ -127,7 +127,7 @@ impl<T: MinerEngine + Clone + 'static> ProcessController<T> {
             invalid_shares,
         });
         if let ProcessControllerInner::Working { mut child, .. } = old {
-            let _ = child.kill();
+            let _ = child.kill().await;
         }
     }
 
@@ -175,7 +175,10 @@ impl<T> Future for ProcessController<T> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match *self.inner.borrow_mut() {
-            ProcessControllerInner::Working { ref mut child, .. } => child.poll_unpin(cx),
+            ProcessControllerInner::Working { ref mut child, .. } => {
+                let fut = pin!(child.wait());
+                fut.poll(cx)
+            }
             _ => Poll::Pending,
         }
     }

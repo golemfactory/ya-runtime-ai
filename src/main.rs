@@ -3,10 +3,10 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Write;
+use std::pin::pin;
 use std::rc::Rc;
 use std::time::Duration;
 use std::{env, io};
-use std::pin::pin;
 
 use chrono::Utc;
 use clap::Parser;
@@ -98,26 +98,25 @@ async fn activity_loop<T: process::MinerEngine + Clone + Unpin + 'static>(
         log::debug!("Looping2 ...");
 
         let sleep = pin!(actix_rt::time::sleep(Duration::from_secs(1)));
-        process =
-            match future::select(sleep, process).await {
-                future::Either::Left((_, p)) => p,
-                future::Either::Right((status, _)) => {
-                    let _err = report_service
-                        .call(activity::local::SetState {
-                            activity_id: activity_id.to_string(),
-                            state: ActivityState {
-                                state: StatePair::from(State::Terminated),
-                                reason: Some("process exit".to_string()),
-                                error_message: Some(format!("status: {:?}", status)),
-                            },
-                            timeout: None,
-                            credentials: None,
-                        })
-                        .await;
-                    log::error!("process exit: {:?}", status);
-                    anyhow::bail!("Miner app exited")
-                }
+        process = match future::select(sleep, process).await {
+            future::Either::Left((_, p)) => p,
+            future::Either::Right((status, _)) => {
+                let _err = report_service
+                    .call(activity::local::SetState {
+                        activity_id: activity_id.to_string(),
+                        state: ActivityState {
+                            state: StatePair::from(State::Terminated),
+                            reason: Some("process exit".to_string()),
+                            error_message: Some(format!("status: {:?}", status)),
+                        },
+                        timeout: None,
+                        credentials: None,
+                    })
+                    .await;
+                log::error!("process exit: {:?}", status);
+                anyhow::bail!("Miner app exited")
             }
+        }
     }
     Ok(())
 }
@@ -155,6 +154,10 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
             io::stdout().write_all(offer_template::template()?.as_ref())?;
             return Ok(());
         }
+        Command::Test => {
+            // Test
+            return Ok(());
+        }
     };
 
     env_logger::builder().format_indent(Some(4)).init();
@@ -188,7 +191,7 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
                 let mut result = Vec::new();
                 for exe in &exec.exe_script {
                     match exe {
-                        ExeScriptCommand::Deploy {} => {
+                        ExeScriptCommand::Deploy { .. } => {
                             send_state(
                                 &report_url,
                                 &activity_id,

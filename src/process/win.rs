@@ -1,5 +1,3 @@
-use core::mem;
-use std::ptr;
 #[cfg(target_os = "windows")]
 use winapi::shared::minwindef::{DWORD, LPVOID};
 #[cfg(target_os = "windows")]

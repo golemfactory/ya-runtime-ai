@@ -1,8 +1,8 @@
 //! Exe-Unit Cli Definitions
 //!
 
-use std::path::PathBuf;
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -13,7 +13,6 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 }
-
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
@@ -31,7 +30,7 @@ pub enum Command {
     /// Print an offer template in JSON format
     OfferTemplate,
     /// Run runtime's test command
-    Test
+    Test,
 }
 
 #[derive(Parser, Debug)]
@@ -49,8 +48,8 @@ pub struct RunArgs {
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn test_args() {
@@ -58,6 +57,4 @@ mod test {
         assert_eq!(cli.binary, Some(Path::new("/tmp/false-runtime")));
         assert!(matches!(cli.command, Command::OfferTemplate));
     }
-
-
 }
