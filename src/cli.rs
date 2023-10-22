@@ -16,6 +16,21 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
+    /*
+    /// Execute commands from file
+    FromFile {
+        /// ExeUnit daemon GSB URL
+        #[arg(long)]
+        report_url: Option<String>,
+        /// ExeUnit service ID
+        #[arg(long)]
+        service_id: Option<String>,
+        /// Command file path
+        input: PathBuf,
+        #[command(flatten)]
+        args: RunArgs,
+    },
+     */
     /// Bind to Service Bus
     ServiceBus {
         /// ExeUnit service ID
@@ -54,7 +69,7 @@ mod test {
     #[test]
     fn test_args() {
         let cli = Cli::parse_from(["-b", "/tmp/false-runtime", "offer-template"]);
-        assert_eq!(cli.binary, Some(Path::new("/tmp/false-runtime")));
+        assert_eq!(cli.binary, Some(PathBuf::from(Path::new("/tmp/false-runtime"))));
         assert!(matches!(cli.command, Command::OfferTemplate));
     }
 }

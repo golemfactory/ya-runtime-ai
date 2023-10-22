@@ -139,6 +139,31 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
     let cli = Cli::parse();
 
     let (exe_unit_url, report_url, activity_id, agreement_path) = match &cli.command {
+        /*
+        Command::FromFile {
+            report_url,
+            service_id,
+            input,
+            args,
+        } => {
+            let contents = std::fs::read_to_string(input).map_err(|e| {
+                anyhow::anyhow!("Cannot read commands from file {}: {e}", input.display())
+            })?;
+            let contents = serde_json::from_str(&contents).map_err(|e| {
+                anyhow::anyhow!(
+                    "Cannot deserialize commands from file {}: {e}",
+                    input.display(),
+                )
+            })?;
+            //TODO use file content
+            (
+                ya_core_model::activity::exeunit::bus_id(&service_id),
+                report_url.unwrap(),
+                service_id.unwrap(),
+                args.agreement,
+            )
+        }
+         */
         Command::ServiceBus {
             service_id,
             report_url,
