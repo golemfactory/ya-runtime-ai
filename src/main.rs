@@ -100,21 +100,17 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     Ok(())
 }
 
-const ENV_MINER: &str = "FRAMEWORK_NAME";
-
 #[actix_rt::main]
 async fn main() -> anyhow::Result<()> {
-    let framework = env::var(ENV_MINER).unwrap_or("Dummy".to_string());
-    match framework.as_str() {
-        "Dummy" => run::<process::dummy::Dummy>().await,
-        _ => anyhow::bail!("Unsupported framework {}", framework),
+    let cli = Cli::parse();
+    match cli.runtime.to_lowercase().as_str() {
+        "dummy" => run::<process::dummy::Dummy>(cli).await,
+        _ => anyhow::bail!("Unsupported framework {}", cli.runtime),
     }
 }
 
-async fn run<T: process::Runtime + Clone + Unpin + 'static>() -> anyhow::Result<()> {
+async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
-
-    let cli = Cli::parse();
 
     let (exe_unit_url, report_url, activity_id, agreement_path) = match &cli.command {
         /*
@@ -154,7 +150,8 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>() -> anyhow::Result<
             &args.agreement,
         ),
         Command::OfferTemplate => {
-            io::stdout().write_all(offer_template::template()?.as_ref())?;
+            let template = offer_template::template(cli.runtime)?;
+            io::stdout().write_all(template.as_ref())?;
             return Ok(());
         }
         Command::Test => {

@@ -10,6 +10,9 @@ pub struct Cli {
     /// Runtime binary path
     #[arg(long, short)]
     pub binary: Option<PathBuf>,
+    /// Runtime pavkage name
+    #[arg(long, short)]
+    pub runtime: String,
     #[command(subcommand)]
     pub command: Command,
 }
@@ -69,7 +72,10 @@ mod test {
     #[test]
     fn test_args() {
         let cli = Cli::parse_from(["-b", "/tmp/false-runtime", "offer-template"]);
-        assert_eq!(cli.binary, Some(PathBuf::from(Path::new("/tmp/false-runtime"))));
+        assert_eq!(
+            cli.binary,
+            Some(PathBuf::from(Path::new("/tmp/false-runtime")))
+        );
         assert!(matches!(cli.command, Command::OfferTemplate));
     }
 }

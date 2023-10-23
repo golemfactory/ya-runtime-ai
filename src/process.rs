@@ -11,12 +11,12 @@ use std::task::{Context, Poll};
 
 use tokio::process::*;
 
-pub mod win;
 pub mod dummy;
+pub mod win;
 
 #[derive(Default, Clone)]
 pub struct Shares {
-    pub cnt: u64
+    pub cnt: u64,
 }
 
 pub trait Runtime {
@@ -24,7 +24,6 @@ pub trait Runtime {
 
     fn run<ReportFn: Fn(Shares) + 'static>(stdout: ChildStdout, report_fn: ReportFn);
 }
-
 
 #[derive(Parser)]
 #[cfg_attr(test, derive(Debug, Eq, PartialEq))]
@@ -48,11 +47,8 @@ pub struct ProcessController<T> {
 #[allow(clippy::large_enum_variant)]
 enum ProcessControllerInner {
     Deployed {},
-    Working {
-        child: Child,
-    },
-    Stopped {
-    },
+    Working { child: Child },
+    Stopped {},
 }
 
 pub fn find_exe(file_name: impl AsRef<Path>) -> std::io::Result<PathBuf> {
@@ -83,17 +79,14 @@ impl<T: Runtime + Clone + 'static> ProcessController<T> {
     pub fn report(&self) -> Option<()> {
         match *self.inner.borrow_mut() {
             ProcessControllerInner::Deployed { .. } => Some(()),
-            ProcessControllerInner::Working {
-                ..
-            } => Some(()),
+            ProcessControllerInner::Working { .. } => Some(()),
             _ => None,
         }
     }
 
     pub async fn stop(&self) {
         let () = self.report().unwrap_or_default();
-        let old = self.inner.replace(ProcessControllerInner::Stopped {
-        });
+        let old = self.inner.replace(ProcessControllerInner::Stopped {});
         if let ProcessControllerInner::Working { mut child, .. } = old {
             let _ = child.kill().await;
         }
@@ -103,9 +96,8 @@ impl<T: Runtime + Clone + 'static> ProcessController<T> {
         let mut child = T::start(args)?;
 
         let opt_stdout = child.stdout.take();
-        self.inner.replace(ProcessControllerInner::Working {
-            child
-        });
+        self.inner
+            .replace(ProcessControllerInner::Working { child });
 
         if let Some(stdout) = opt_stdout {
             let _me: ProcessController<T> = self.clone();

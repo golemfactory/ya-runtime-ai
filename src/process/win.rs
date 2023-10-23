@@ -52,7 +52,8 @@ impl JobObject {
 impl Drop for JobObject {
     fn drop(&mut self) {
         let handle = mem::replace(&mut self.handle, INVALID_HANDLE_VALUE);
-        if handle != INVALID_HANDLE_VALUE && unsafe { um::handleapi::CloseHandle(self.handle) } == 0 {
+        if handle != INVALID_HANDLE_VALUE && unsafe { um::handleapi::CloseHandle(self.handle) } == 0
+        {
             let code = unsafe { um::errhandlingapi::GetLastError() };
             log::error!("winapi: {}", code);
         }
