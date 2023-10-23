@@ -41,7 +41,7 @@ async fn send_state(
         .await??)
 }
 
-async fn activity_loop<T: process::MinerEngine + Clone + Unpin + 'static>(
+async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
     mut process: ProcessController<T>,
@@ -51,35 +51,14 @@ async fn activity_loop<T: process::MinerEngine + Clone + Unpin + 'static>(
     let start = Utc::now();
     let mut current_usage = agreement.clean_usage_vector();
     let duration_idx = agreement.resolve_counter("golem.usage.duration_sec");
-    let shares_idx = agreement.resolve_counter("golem.usage.mining.hash");
-    let hrate_idx = agreement.resolve_counter("golem.usage.mining.hash-rate");
-    let raw_shares_idx = agreement.resolve_counter("golem.usage.mining.share");
-    let raw_stale_shares_idx = agreement.resolve_counter("golem.usage.mining.stale-share");
-    let raw_invalid_shares_idx = agreement.resolve_counter("golem.usage.mining.invalid-share");
 
-    while let Some((shares, stale_shares, invalid_shares, speed, diff_shares)) = process.report() {
+    while let Some(()) = process.report() {
         let now = Utc::now();
         let duration = now - start;
 
         if let Some(idx) = duration_idx {
             current_usage[idx] = duration.to_std()?.as_secs_f64();
         }
-        if let Some(idx) = shares_idx {
-            current_usage[idx] = diff_shares;
-        }
-        if let Some(idx) = hrate_idx {
-            current_usage[idx] = speed;
-        }
-        if let Some(idx) = raw_shares_idx {
-            current_usage[idx] = shares as f64;
-        }
-        if let Some(idx) = raw_stale_shares_idx {
-            current_usage[idx] = stale_shares as f64;
-        }
-        if let Some(idx) = raw_invalid_shares_idx {
-            current_usage[idx] = invalid_shares as f64;
-        }
-
         match report_service
             .call(activity::local::SetUsage {
                 activity_id: activity_id.to_string(),
@@ -114,26 +93,25 @@ async fn activity_loop<T: process::MinerEngine + Clone + Unpin + 'static>(
                     })
                     .await;
                 log::error!("process exit: {:?}", status);
-                anyhow::bail!("Miner app exited")
+                anyhow::bail!("Runtime exited")
             }
         }
     }
     Ok(())
 }
 
-const ENV_MINER: &str = "MINER_NAME";
+const ENV_MINER: &str = "FRAMEWORK_NAME";
 
 #[actix_rt::main]
 async fn main() -> anyhow::Result<()> {
-    let miner = env::var(ENV_MINER).unwrap_or("Phoenix".to_string());
-    match miner.as_str() {
-        "Phoenix" => run::<process::Phoenix>().await,
-        "TRex" => run::<process::Trex>().await,
-        _ => anyhow::bail!("Miner not found {}", miner),
+    let framework = env::var(ENV_MINER).unwrap_or("Dummy".to_string());
+    match framework.as_str() {
+        "Dummy" => run::<process::dummy::Dummy>().await,
+        _ => anyhow::bail!("Unsupported framework {}", framework),
     }
 }
 
-async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Result<()> {
+async fn run<T: process::Runtime + Clone + Unpin + 'static>() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
 
     let cli = Cli::parse();
@@ -170,7 +148,7 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
             args,
             ..
         } => (
-            ya_core_model::activity::exeunit::bus_id(&service_id),
+            ya_core_model::activity::exeunit::bus_id(service_id),
             report_url,
             service_id,
             &args.agreement,
@@ -193,15 +171,15 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
     let process_controller = process::ProcessController::<T>::new();
     let agreement = AgreementDesc::load(agreement_path)?;
     let activity_pinger = activity_loop(
-        &report_url,
-        &activity_id,
+        report_url,
+        activity_id,
         process_controller.clone(),
         agreement,
     );
     #[cfg(target_os = "windows")]
     let _job = process::win::JobObject::new()?;
 
-    let _ = {
+    {
         let report_url = report_url.clone();
         let activity_id = activity_id.clone();
         let batch: Rc<RefCell<HashMap<String, Vec<ExeScriptCommandResult>>>> = Default::default();
@@ -239,7 +217,7 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
                             });
                         }
                         ExeScriptCommand::Start { args, .. } => {
-                            let args = process::MiningAppArgs::new(&args).map_err(|e| {
+                            let args = process::RuntimeArgs::new(args).map_err(|e| {
                                 RpcMessageError::Activity(format!("invalid args: {}", e))
                             })?;
 
@@ -326,8 +304,8 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
         });
     };
     send_state(
-        &report_url,
-        &activity_id,
+        report_url,
+        activity_id,
         ActivityState::from(StatePair(State::Initialized, None)),
     )
     .await?;
