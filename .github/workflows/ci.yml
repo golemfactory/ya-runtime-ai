@@ -25,6 +25,8 @@ jobs:
           toolchain: 1.71.0
           components: clippy, rustfmt
 
+      - uses: Swatinem/rust-cache@v2
+
       - run: cargo tree --locked
 
       - run: cargo fmt --all -- --check
