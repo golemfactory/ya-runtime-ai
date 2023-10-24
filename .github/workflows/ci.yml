@@ -12,47 +12,35 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
+    name: CI
 
     runs-on: windows-latest
-
+  
     steps:
-    - name: Check lockfile
-      uses: actions-rs/cargo@v1
-      with:
-        command: tree
-        args: --locked
+      - uses: actions/checkout@v4
 
-    - name: Check formatting
-      uses: actions-rs/cargo@v1
-      with:
-        command: fmt
-        args: --all -- --check
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.71.0
+          components: clippy, rustfmt
 
-    - uses: actions/checkout@v3
+      - run: cargo tree --locked
 
-    - name: Build
-      run: cargo build --verbose
+      - run: cargo fmt --all -- --check
 
-    - name: Check clippy lints
-      uses: actions-rs/cargo@v1
-      with:
-        command: Clippy
-        args: --all-targets --all-features --workspace -- -D warnings
+      - run: cargo clippy --all-targets --all-features --workspace -- -D warnings
 
-    - name: Run tests
-      run: cargo test --verbose
+      - run: cargo test --all-features --workspace
 
-    - uses: actions/checkout@v3
+      - name: Release Build
+        if: startsWith(github.ref, 'refs/tags/')
+        run: cargo build --workspace --release
 
-    - name: Build Release
-      if: startsWith(github.ref, 'refs/tags/')
-      run: cargo build --release
-
-    - name: Release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        files: target/release/*.exe
-        prerelease: ${{ startsWith(github.ref, 'refs/tags/pre-rel-v') }}
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: target/release/*.exe
+          prerelease: ${{ startsWith(github.ref, 'refs/tags/pre-rel-v') }}
