@@ -61,9 +61,10 @@ struct OfferTemplate {
 pub fn template(runtime_name: String) -> anyhow::Result<Cow<'static, [u8]>> {
     let offer_template = include_bytes!("offer-template.json");
     let mut template: OfferTemplate = serde_json::from_slice(offer_template.as_ref())?;
+    let capabilities = vec![serde_json::Value::String(runtime_name)];
     template.properties.insert(
-        "golem.inf.ai.runtime".to_string(),
-        serde_json::Value::String(runtime_name),
+        "golem.runtime.capabilities".to_string(),
+        serde_json::Value::Array(capabilities),
     );
     let devices = parse_devices_info()?;
     if devices.is_empty() {
