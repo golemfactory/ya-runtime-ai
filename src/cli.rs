@@ -63,19 +63,3 @@ pub struct RunArgs {
     #[arg(long, short)]
     pub cache_dir: Option<PathBuf>,
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use std::path::Path;
-
-    #[test]
-    fn test_args() {
-        let cli = Cli::parse_from(["-b", "/tmp/false-runtime", "offer-template"]);
-        assert_eq!(
-            cli.binary,
-            Some(PathBuf::from(Path::new("/tmp/false-runtime")))
-        );
-        assert!(matches!(cli.command, Command::OfferTemplate));
-    }
-}

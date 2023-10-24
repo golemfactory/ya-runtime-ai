@@ -7,8 +7,6 @@ use winapi::um::handleapi::INVALID_HANDLE_VALUE;
 #[cfg(target_os = "windows")]
 use winapi::um::winnt::HANDLE;
 
-use std::{mem, ptr};
-
 #[cfg(target_os = "windows")]
 #[derive(Clone, Debug)]
 pub struct JobObject {
