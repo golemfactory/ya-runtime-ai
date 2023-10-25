@@ -20,10 +20,12 @@ use ya_service_bus::typed as gsb;
 
 use crate::agreement::AgreementDesc;
 use crate::cli::*;
+use crate::logger::*;
 use crate::process::ProcessController;
 
 mod agreement;
 mod cli;
+mod logger;
 mod offer_template;
 mod process;
 
@@ -102,14 +104,37 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
 
 #[actix_rt::main]
 async fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+    let panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |e| {
+        log::error!("AI Runtime panic: {e}");
+        panic_hook(e)
+    }));
+
+    if let Err(error) = start_file_logger() {
+        start_logger().expect("Failed to start logging");
+        log::warn!("Using fallback logging due to an error: {:?}", error);
+    };
+
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(err) => {
+            log::error!("Failed to parse CLI: {}", err);
+            err.exit();
+        }
+    };
+
     match cli.runtime.to_lowercase().as_str() {
         "dummy" => run::<process::dummy::Dummy>(cli).await,
-        _ => anyhow::bail!("Unsupported framework {}", cli.runtime),
+        _ => {
+            let err = anyhow::format_err!("Unsupported framework {}", cli.runtime);
+            log::error!("{}", err);
+            anyhow::bail!(err)
+        }
     }
 }
 
 async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
     let args: Vec<String> = env::args().collect();
 
     let (exe_unit_url, report_url, activity_id, agreement_path) = match &cli.command {
@@ -160,7 +185,6 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow:
         }
     };
 
-    env_logger::builder().format_indent(Some(4)).init();
     log::info!("{:?}", args);
     log::info!("CLI args: {:?}", &cli);
     log::info!("Binding to GSB ...");

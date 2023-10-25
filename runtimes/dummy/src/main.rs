@@ -18,7 +18,7 @@ fn main() {
             }
             Err(error) => {
                 eprintln!("Error reading input: {}", error);
-                break;
+                // break;
             }
         }
     }
