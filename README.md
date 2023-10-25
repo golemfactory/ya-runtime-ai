@@ -22,4 +22,4 @@ Create sample `exeunits-descriptor.json` (with correct `supervisor-path`):
 Point `ya-provider` to exeunits descriptor using `EXE_UNIT_PATH` variable.
 
 `ya-provider` creates on startup a `default` preset for `wasmtime` runtime.
-Update it: `ya-provider.exe preset update --name default  --no-interactive  --exe-unit ai-dummy --price Duration=1.2 CPU=3.4 "Init price=0.00001"`
+Update it: `ya-provider.exe preset update --name default  --no-interactive  --exe-unit ai --price Duration=0.0001 CPU=0.0001 "Init price=0.0000000000000001"`
