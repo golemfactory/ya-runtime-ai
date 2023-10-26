@@ -114,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
         start_logger().expect("Failed to start logging");
         log::warn!("Using fallback logging due to an error: {:?}", error);
     };
-
+    log::debug!("CLI args: {:?}", std::env::args_os());
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(err) => {

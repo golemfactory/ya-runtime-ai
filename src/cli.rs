@@ -37,10 +37,8 @@ pub enum Command {
     /// Bind to Service Bus
     ServiceBus {
         /// ExeUnit service ID
-        #[arg(long, short)]
         service_id: String,
         /// ExeUnit daemon GSB URL
-        #[arg(long, short)]
         report_url: String,
         #[command(flatten)]
         args: RunArgs,
