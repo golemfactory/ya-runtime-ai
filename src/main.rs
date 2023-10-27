@@ -114,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
         start_logger().expect("Failed to start logging");
         log::warn!("Using fallback logging due to an error: {:?}", error);
     };
-    log::debug!("CLI args: {:?}", std::env::args_os());
+    log::debug!("Raw CLI args: {:?}", std::env::args_os());
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(err) => {
@@ -238,6 +238,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow:
                             });
                         }
                         ExeScriptCommand::Start { args, .. } => {
+                            log::debug!("Start cmd args: {args:?}");
                             let args = process::RuntimeArgs::new(args).map_err(|e| {
                                 RpcMessageError::Activity(format!("invalid args: {}", e))
                             })?;
@@ -295,7 +296,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow:
                         }
                         cmd => {
                             return Err(RpcMessageError::Activity(format!(
-                                "invalid command for mining exe-unit: {:?}",
+                                "invalid command for ai runtime: {:?}",
                                 cmd
                             )))
                         }
