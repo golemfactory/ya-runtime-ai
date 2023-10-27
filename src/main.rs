@@ -238,10 +238,11 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow:
                             });
                         }
                         ExeScriptCommand::Start { args, .. } => {
-                            log::debug!("Start cmd args: {args:?}");
-                            let args = process::RuntimeArgs::new(args).map_err(|e| {
+                            log::debug!("Raw Start cmd args: {args:?}");
+                            let args = T::parse_args(args).map_err(|e| {
                                 RpcMessageError::Activity(format!("invalid args: {}", e))
                             })?;
+                            log::debug!("Start cmd model: {}", args.model);
 
                             send_state(
                                 &report_url,
@@ -255,6 +256,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow:
                                 .start(&args)
                                 .await
                                 .map_err(|e| RpcMessageError::Activity(e.to_string()))?;
+                            log::debug!("Started process");
 
                             send_state(
                                 &report_url,
@@ -336,4 +338,15 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow:
     log::info!("Finished waiting");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::process::{self, RuntimeArgs};
+
+    #[test]
+    fn arg_test() {
+        let args = vec!["--model".into(), "dummy".into()];
+        process::RuntimeArgs::new(&args).unwrap();
+    }
 }

@@ -7,6 +7,7 @@ use winapi::um::handleapi::INVALID_HANDLE_VALUE;
 #[cfg(target_os = "windows")]
 use winapi::um::winnt::HANDLE;
 
+#[cfg(target_os = "windows")]
 use std::{mem, ptr};
 
 #[cfg(target_os = "windows")]

@@ -20,6 +20,8 @@ pub struct Shares {
 }
 
 pub trait Runtime {
+    fn parse_args(args: &[String]) -> anyhow::Result<RuntimeArgs>;
+
     fn start(args: &RuntimeArgs) -> anyhow::Result<Child>;
 
     fn run<ReportFn: Fn(Shares) + 'static>(stdout: ChildStdout, report_fn: ReportFn);
@@ -33,8 +35,8 @@ pub struct RuntimeArgs {
 }
 
 impl RuntimeArgs {
-    pub fn new(args: &[String]) -> anyhow::Result<Self> {
-        Ok(Self::try_parse_from(args)?)
+    pub fn new(cmd: &String, args: &[String]) -> anyhow::Result<Self> {
+        Ok(Self::try_parse_from(std::iter::once(cmd).chain(args))?)
     }
 }
 
