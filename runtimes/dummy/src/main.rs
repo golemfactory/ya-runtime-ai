@@ -1,9 +1,11 @@
+use std::env;
 use std::io;
 
 fn main() {
     let mut input = String::new();
+    let args: Vec<String> = env::args().collect();
 
-    println!("Dummy");
+    println!("Dummy runtime. Args: {args:?}");
 
     loop {
         input.clear();

@@ -11,14 +11,19 @@ pub struct Dummy {}
 impl Unpin for Dummy {}
 
 impl Runtime for Dummy {
-    fn start(_args: &RuntimeArgs) -> anyhow::Result<Child> {
+    fn parse_args(args: &[String]) -> anyhow::Result<RuntimeArgs> {
+        RuntimeArgs::new(&"dummy.exe".into(), args)
+    }
+
+    fn start(args: &RuntimeArgs) -> anyhow::Result<Child> {
         let exe = super::find_exe("dummy.exe")?;
         let mut cmd = Command::new(&exe);
         let work_dir = exe.parent().unwrap();
         cmd.stdout(Stdio::piped())
             .stdin(Stdio::null())
-            .current_dir(work_dir);
-
+            .current_dir(work_dir)
+            .arg("--model")
+            .arg(&args.model);
         Ok(cmd.kill_on_drop(true).spawn()?)
     }
 
