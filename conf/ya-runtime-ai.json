@@ -1,43 +1,11 @@
 [
-  {
-    "name": "ai",
-    "version": "0.1.0",
-    "supervisor-path": "ya-runtime-ai",
-    "description": "Golem ai (PoC)",
-    "extra-args": [],
-	"config": {
-		"counters": {
-			"golem.usage.mining.hash": {
-				"name": "share",
-				"description": "Hash share normalized to 1GH",
-				"price": true
-			},
-			"golem.usage.mining.share": {
-				"name": "raw-share",
-				"description": "Share count",
-				"price": false
-			},
-			"golem.usage.mining.stale-share": {
-				"name": "stale-share",
-				"description": "Stale share count",
-				"price": false
-			},
-			"golem.usage.mining.invalid-share": {
-				"name": "invalid-share",
-				"description": "Invalid share count",
-				"price": false
-			},
-			"golem.usage.mining.hash-rate": {
-				"name": "hash-rate",
-				"description": "Current hashrate",
-				"price": false
-			},
-			"golem.usage.duration_sec": {
-				"name": "duration",
-				"description": "Duration",
-				"price": true
-			} 
-		}
-	}
-  }
+    {
+        "name": "ai-dummy",
+        "version": "0.1.0",
+        "supervisor-path": "[..]\\ya-runtime-ai\\target\\debug\\ya-runtime-ai.exe",
+        "extra-args": ["--runtime", "dummy"],
+        "description": "dummy ai runtime",
+        "properties": {
+        }
+    }
 ]
