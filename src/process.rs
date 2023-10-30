@@ -15,16 +15,16 @@ pub mod dummy;
 pub mod win;
 
 #[derive(Default, Clone)]
-pub struct Shares {
+pub struct Usage {
     pub cnt: u64,
 }
 
-pub trait Runtime {
+pub trait AiFramework {
     fn parse_args(args: &[String]) -> anyhow::Result<RuntimeArgs>;
 
     fn start(args: &RuntimeArgs) -> anyhow::Result<Child>;
 
-    fn run<ReportFn: Fn(Shares) + 'static>(stdout: ChildStdout, report_fn: ReportFn);
+    fn run<ReportFn: Fn(Usage) + 'static>(stdout: ChildStdout, report_fn: ReportFn);
 }
 
 #[derive(Parser)]
@@ -70,7 +70,7 @@ pub fn find_exe(file_name: impl AsRef<Path>) -> std::io::Result<PathBuf> {
     .ok_or_else(|| std::io::ErrorKind::NotFound.into())
 }
 
-impl<T: Runtime + Clone + 'static> ProcessController<T> {
+impl<T: AiFramework + Clone + 'static> ProcessController<T> {
     pub fn new() -> Self {
         ProcessController {
             inner: Rc::new(RefCell::new(ProcessControllerInner::Deployed {})),

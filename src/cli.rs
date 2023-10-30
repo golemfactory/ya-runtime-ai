@@ -10,7 +10,7 @@ pub struct Cli {
     /// Runtime binary path
     #[arg(long, short)]
     pub binary: Option<PathBuf>,
-    /// Runtime pavkage name
+    /// Runtime package name
     #[arg(long, short)]
     pub runtime: String,
     #[command(subcommand)]

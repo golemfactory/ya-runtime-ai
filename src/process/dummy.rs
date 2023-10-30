@@ -3,14 +3,14 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, ChildStdout, Command};
 
-use super::{Runtime, RuntimeArgs, Shares};
+use super::{AiFramework, RuntimeArgs, Usage};
 
 #[derive(Clone)]
 pub struct Dummy {}
 
 impl Unpin for Dummy {}
 
-impl Runtime for Dummy {
+impl AiFramework for Dummy {
     fn parse_args(args: &[String]) -> anyhow::Result<RuntimeArgs> {
         RuntimeArgs::new(&"dummy.exe".into(), args)
     }
@@ -27,7 +27,7 @@ impl Runtime for Dummy {
         Ok(cmd.kill_on_drop(true).spawn()?)
     }
 
-    fn run<ReportFn: Fn(Shares) + 'static>(stdout: ChildStdout, _report_fn: ReportFn) {
+    fn run<ReportFn: Fn(Usage) + 'static>(stdout: ChildStdout, _report_fn: ReportFn) {
         tokio::task::spawn_local(async move {
             let mut stdout = BufReader::new(stdout);
             loop {

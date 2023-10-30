@@ -43,7 +43,7 @@ async fn send_state(
         .await??)
 }
 
-async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
+async fn activity_loop<T: process::AiFramework + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
     mut process: ProcessController<T>,
@@ -133,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
+async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     let args: Vec<String> = env::args().collect();
 
