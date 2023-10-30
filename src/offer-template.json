@@ -1,14 +1,7 @@
 {
   "properties": {
-    "golem.activity.mining.algo":"ethash",
-    "golem.activity.mining.app":"claymore",
     "golem.com.usage.vector":[
-      "golem.usage.duration_sec",
-      "golem.usage.mining.hash",
-      "golem.usage.mining.share",
-      "golem.usage.mining.stale-share",
-      "golem.usage.mining.invalid-share",
-      "golem.usage.mining.hash-rate"
+      "golem.usage.duration_sec"
     ]},
   "constraints":""
 }

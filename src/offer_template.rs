@@ -58,13 +58,18 @@ struct OfferTemplate {
     constraints: String,
 }
 
-pub fn template() -> anyhow::Result<Cow<'static, [u8]>> {
+pub fn template(runtime_name: String) -> anyhow::Result<Cow<'static, [u8]>> {
     let offer_template = include_bytes!("offer-template.json");
+    let mut template: OfferTemplate = serde_json::from_slice(offer_template.as_ref())?;
+    let capabilities = vec![serde_json::Value::String(runtime_name)];
+    template.properties.insert(
+        "golem.runtime.capabilities".to_string(),
+        serde_json::Value::Array(capabilities),
+    );
     let devices = parse_devices_info()?;
     if devices.is_empty() {
-        return Ok(Cow::Borrowed(offer_template.as_ref()));
+        return Ok(Cow::Owned(serde_json::to_vec_pretty(&template)?));
     }
-    let mut template: OfferTemplate = serde_json::from_slice(offer_template.as_ref())?;
     template.properties.insert(
         "golem.inf.gpu.card".to_string(),
         serde_json::Value::Array(
@@ -78,6 +83,5 @@ pub fn template() -> anyhow::Result<Cow<'static, [u8]>> {
         "golem.inf.gpu.mem".to_string(),
         serde_json::Value::Array(devices.iter().map(|&(_, mem)| mem.into()).collect()),
     );
-
     Ok(Cow::Owned(serde_json::to_vec_pretty(&template)?))
 }

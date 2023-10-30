@@ -20,10 +20,12 @@ use ya_service_bus::typed as gsb;
 
 use crate::agreement::AgreementDesc;
 use crate::cli::*;
+use crate::logger::*;
 use crate::process::ProcessController;
 
 mod agreement;
 mod cli;
+mod logger;
 mod offer_template;
 mod process;
 
@@ -41,7 +43,7 @@ async fn send_state(
         .await??)
 }
 
-async fn activity_loop<T: process::MinerEngine + Clone + Unpin + 'static>(
+async fn activity_loop<T: process::AiFramework + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
     mut process: ProcessController<T>,
@@ -51,35 +53,14 @@ async fn activity_loop<T: process::MinerEngine + Clone + Unpin + 'static>(
     let start = Utc::now();
     let mut current_usage = agreement.clean_usage_vector();
     let duration_idx = agreement.resolve_counter("golem.usage.duration_sec");
-    let shares_idx = agreement.resolve_counter("golem.usage.mining.hash");
-    let hrate_idx = agreement.resolve_counter("golem.usage.mining.hash-rate");
-    let raw_shares_idx = agreement.resolve_counter("golem.usage.mining.share");
-    let raw_stale_shares_idx = agreement.resolve_counter("golem.usage.mining.stale-share");
-    let raw_invalid_shares_idx = agreement.resolve_counter("golem.usage.mining.invalid-share");
 
-    while let Some((shares, stale_shares, invalid_shares, speed, diff_shares)) = process.report() {
+    while let Some(()) = process.report() {
         let now = Utc::now();
         let duration = now - start;
 
         if let Some(idx) = duration_idx {
             current_usage[idx] = duration.to_std()?.as_secs_f64();
         }
-        if let Some(idx) = shares_idx {
-            current_usage[idx] = diff_shares;
-        }
-        if let Some(idx) = hrate_idx {
-            current_usage[idx] = speed;
-        }
-        if let Some(idx) = raw_shares_idx {
-            current_usage[idx] = shares as f64;
-        }
-        if let Some(idx) = raw_stale_shares_idx {
-            current_usage[idx] = stale_shares as f64;
-        }
-        if let Some(idx) = raw_invalid_shares_idx {
-            current_usage[idx] = invalid_shares as f64;
-        }
-
         match report_service
             .call(activity::local::SetUsage {
                 activity_id: activity_id.to_string(),
@@ -114,44 +95,88 @@ async fn activity_loop<T: process::MinerEngine + Clone + Unpin + 'static>(
                     })
                     .await;
                 log::error!("process exit: {:?}", status);
-                anyhow::bail!("Miner app exited")
+                anyhow::bail!("Runtime exited")
             }
         }
     }
     Ok(())
 }
 
-const ENV_MINER: &str = "MINER_NAME";
-
 #[actix_rt::main]
 async fn main() -> anyhow::Result<()> {
-    let miner = env::var(ENV_MINER).unwrap_or("Phoenix".to_string());
-    match miner.as_str() {
-        "Phoenix" => run::<process::Phoenix>().await,
-        "TRex" => run::<process::Trex>().await,
-        _ => anyhow::bail!("Miner not found {}", miner),
+    let panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |e| {
+        log::error!("AI Runtime panic: {e}");
+        panic_hook(e)
+    }));
+
+    if let Err(error) = start_file_logger() {
+        start_logger().expect("Failed to start logging");
+        log::warn!("Using fallback logging due to an error: {:?}", error);
+    };
+    log::debug!("Raw CLI args: {:?}", std::env::args_os());
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(err) => {
+            log::error!("Failed to parse CLI: {}", err);
+            err.exit();
+        }
+    };
+
+    match cli.runtime.to_lowercase().as_str() {
+        "dummy" => run::<process::dummy::Dummy>(cli).await,
+        _ => {
+            let err = anyhow::format_err!("Unsupported framework {}", cli.runtime);
+            log::error!("{}", err);
+            anyhow::bail!(err)
+        }
     }
 }
 
-async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Result<()> {
+async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
     let args: Vec<String> = env::args().collect();
 
-    let cli = Cli::parse();
-
     let (exe_unit_url, report_url, activity_id, agreement_path) = match &cli.command {
+        /*
+        Command::FromFile {
+            report_url,
+            service_id,
+            input,
+            args,
+        } => {
+            let contents = std::fs::read_to_string(input).map_err(|e| {
+                anyhow::anyhow!("Cannot read commands from file {}: {e}", input.display())
+            })?;
+            let contents = serde_json::from_str(&contents).map_err(|e| {
+                anyhow::anyhow!(
+                    "Cannot deserialize commands from file {}: {e}",
+                    input.display(),
+                )
+            })?;
+            //TODO use file content
+            (
+                ya_core_model::activity::exeunit::bus_id(&service_id),
+                report_url.unwrap(),
+                service_id.unwrap(),
+                args.agreement,
+            )
+        }
+         */
         Command::ServiceBus {
             service_id,
             report_url,
             args,
             ..
         } => (
-            ya_core_model::activity::exeunit::bus_id(&service_id),
+            ya_core_model::activity::exeunit::bus_id(service_id),
             report_url,
             service_id,
             &args.agreement,
         ),
         Command::OfferTemplate => {
-            io::stdout().write_all(offer_template::template()?.as_ref())?;
+            let template = offer_template::template(cli.runtime)?;
+            io::stdout().write_all(template.as_ref())?;
             return Ok(());
         }
         Command::Test => {
@@ -160,7 +185,6 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
         }
     };
 
-    env_logger::builder().format_indent(Some(4)).init();
     log::info!("{:?}", args);
     log::info!("CLI args: {:?}", &cli);
     log::info!("Binding to GSB ...");
@@ -168,15 +192,15 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
     let process_controller = process::ProcessController::<T>::new();
     let agreement = AgreementDesc::load(agreement_path)?;
     let activity_pinger = activity_loop(
-        &report_url,
-        &activity_id,
+        report_url,
+        activity_id,
         process_controller.clone(),
         agreement,
     );
     #[cfg(target_os = "windows")]
     let _job = process::win::JobObject::new()?;
 
-    let _ = {
+    {
         let report_url = report_url.clone();
         let activity_id = activity_id.clone();
         let batch: Rc<RefCell<HashMap<String, Vec<ExeScriptCommandResult>>>> = Default::default();
@@ -214,9 +238,11 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
                             });
                         }
                         ExeScriptCommand::Start { args, .. } => {
-                            let args = process::MiningAppArgs::new(&args).map_err(|e| {
+                            log::debug!("Raw Start cmd args: {args:?}");
+                            let args = T::parse_args(args).map_err(|e| {
                                 RpcMessageError::Activity(format!("invalid args: {}", e))
                             })?;
+                            log::debug!("Start cmd model: {}", args.model);
 
                             send_state(
                                 &report_url,
@@ -230,6 +256,7 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
                                 .start(&args)
                                 .await
                                 .map_err(|e| RpcMessageError::Activity(e.to_string()))?;
+                            log::debug!("Started process");
 
                             send_state(
                                 &report_url,
@@ -271,7 +298,7 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
                         }
                         cmd => {
                             return Err(RpcMessageError::Activity(format!(
-                                "invalid command for mining exe-unit: {:?}",
+                                "invalid command for ai runtime: {:?}",
                                 cmd
                             )))
                         }
@@ -301,8 +328,8 @@ async fn run<T: process::MinerEngine + Clone + Unpin + 'static>() -> anyhow::Res
         });
     };
     send_state(
-        &report_url,
-        &activity_id,
+        report_url,
+        activity_id,
         ActivityState::from(StatePair(State::Initialized, None)),
     )
     .await?;

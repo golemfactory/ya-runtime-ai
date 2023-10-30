@@ -11,47 +11,32 @@ use std::task::{Context, Poll};
 
 use tokio::process::*;
 
-pub use self::phoenix::Phoenix;
-pub use self::trex::Trex;
-
-mod phoenix;
-mod trex;
+pub mod dummy;
 pub mod win;
 
 #[derive(Default, Clone)]
-pub struct Shares {
+pub struct Usage {
     pub cnt: u64,
-    pub stale_cnt: u64,
-    pub invalid_cnt: u64,
-    pub new_speed: f64,
-    pub difficulty: f64,
 }
 
-pub trait MinerEngine {
-    fn start(args: &MiningAppArgs) -> anyhow::Result<Child>;
+pub trait AiFramework {
+    fn parse_args(args: &[String]) -> anyhow::Result<RuntimeArgs>;
 
-    fn run<ReportFn: Fn(Shares) + 'static>(stdout: ChildStdout, report_fn: ReportFn);
+    fn start(args: &RuntimeArgs) -> anyhow::Result<Child>;
+
+    fn run<ReportFn: Fn(Usage) + 'static>(stdout: ChildStdout, report_fn: ReportFn);
 }
-
-const ENV_EXTRA_PARAMS: &str = "EXTRA_MINER_PARAMS";
 
 #[derive(Parser)]
 #[cfg_attr(test, derive(Debug, Eq, PartialEq))]
-pub struct MiningAppArgs {
+pub struct RuntimeArgs {
     #[arg(long)]
-    pub pool: String,
-    #[arg(long)]
-    pub wallet: String,
-    #[arg(long)]
-    pub worker_name: Option<String>,
-    #[arg(long)]
-    pub password: Option<String>,
+    pub model: String,
 }
 
-impl MiningAppArgs {
-    pub fn new(args: &[String]) -> anyhow::Result<Self> {
-        let me = "gminer".to_string();
-        Ok(Self::try_parse_from(std::iter::once(&me).chain(args))?)
+impl RuntimeArgs {
+    pub fn new(cmd: &String, args: &[String]) -> anyhow::Result<Self> {
+        Ok(Self::try_parse_from(std::iter::once(cmd).chain(args))?)
     }
 }
 
@@ -64,19 +49,8 @@ pub struct ProcessController<T> {
 #[allow(clippy::large_enum_variant)]
 enum ProcessControllerInner {
     Deployed {},
-    Working {
-        child: Child,
-        shares: u64,
-        stale_shares: u64,
-        invalid_shares: u64,
-        speed: f64,
-        diff_share: f64,
-    },
-    Stopped {
-        shares: u64,
-        stale_shares: u64,
-        invalid_shares: u64,
-    },
+    Working { child: Child },
+    Stopped {},
 }
 
 pub fn find_exe(file_name: impl AsRef<Path>) -> std::io::Result<PathBuf> {
@@ -96,7 +70,7 @@ pub fn find_exe(file_name: impl AsRef<Path>) -> std::io::Result<PathBuf> {
     .ok_or_else(|| std::io::ErrorKind::NotFound.into())
 }
 
-impl<T: MinerEngine + Clone + 'static> ProcessController<T> {
+impl<T: AiFramework + Clone + 'static> ProcessController<T> {
     pub fn new() -> Self {
         ProcessController {
             inner: Rc::new(RefCell::new(ProcessControllerInner::Deployed {})),
@@ -104,69 +78,34 @@ impl<T: MinerEngine + Clone + 'static> ProcessController<T> {
         }
     }
 
-    pub fn report(&self) -> Option<(u64, u64, u64, f64, f64)> {
+    pub fn report(&self) -> Option<()> {
         match *self.inner.borrow_mut() {
-            ProcessControllerInner::Deployed { .. } => Some((0, 0, 0, 0.0, 0.0)),
-            ProcessControllerInner::Working {
-                ref shares,
-                ref stale_shares,
-                ref invalid_shares,
-                ref speed,
-                ref diff_share,
-                ..
-            } => Some((*shares, *stale_shares, *invalid_shares, *speed, *diff_share)),
+            ProcessControllerInner::Deployed { .. } => Some(()),
+            ProcessControllerInner::Working { .. } => Some(()),
             _ => None,
         }
     }
 
     pub async fn stop(&self) {
-        let (shares, stale_shares, invalid_shares, _, _) = self.report().unwrap_or_default();
-        let old = self.inner.replace(ProcessControllerInner::Stopped {
-            shares,
-            stale_shares,
-            invalid_shares,
-        });
+        let () = self.report().unwrap_or_default();
+        let old = self.inner.replace(ProcessControllerInner::Stopped {});
         if let ProcessControllerInner::Working { mut child, .. } = old {
             let _ = child.kill().await;
         }
     }
 
-    pub async fn start(&self, args: &MiningAppArgs) -> anyhow::Result<()> {
+    pub async fn start(&self, args: &RuntimeArgs) -> anyhow::Result<()> {
         let mut child = T::start(args)?;
 
         let opt_stdout = child.stdout.take();
-        self.inner.replace(ProcessControllerInner::Working {
-            child,
-            shares: 0,
-            stale_shares: 0,
-            invalid_shares: 0,
-            speed: 0.0,
-            diff_share: 0.0,
-        });
+        self.inner
+            .replace(ProcessControllerInner::Working { child });
 
         if let Some(stdout) = opt_stdout {
-            let me: ProcessController<T> = self.clone();
-            T::run(stdout, move |shares| me.new_shares(shares));
+            let _me: ProcessController<T> = self.clone();
+            T::run(stdout, move |_| {});
         }
         Ok(())
-    }
-
-    fn new_shares(&self, new_shares: Shares) {
-        if let ProcessControllerInner::Working {
-            ref mut shares,
-            ref mut stale_shares,
-            ref mut invalid_shares,
-            ref mut speed,
-            ref mut diff_share,
-            ..
-        } = *self.inner.borrow_mut()
-        {
-            *shares += new_shares.cnt;
-            *stale_shares += new_shares.stale_cnt;
-            *invalid_shares += new_shares.invalid_cnt;
-            *speed = new_shares.new_speed;
-            *diff_share += new_shares.difficulty * 0.001 * new_shares.cnt as f64;
-        }
     }
 }
 

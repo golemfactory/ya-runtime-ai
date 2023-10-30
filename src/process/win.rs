@@ -8,6 +8,9 @@ use winapi::um::handleapi::INVALID_HANDLE_VALUE;
 use winapi::um::winnt::HANDLE;
 
 #[cfg(target_os = "windows")]
+use std::{mem, ptr};
+
+#[cfg(target_os = "windows")]
 #[derive(Clone, Debug)]
 pub struct JobObject {
     handle: HANDLE,
@@ -50,11 +53,10 @@ impl JobObject {
 impl Drop for JobObject {
     fn drop(&mut self) {
         let handle = mem::replace(&mut self.handle, INVALID_HANDLE_VALUE);
-        if handle != INVALID_HANDLE_VALUE {
-            if unsafe { um::handleapi::CloseHandle(self.handle) } == 0 {
-                let code = unsafe { um::errhandlingapi::GetLastError() };
-                log::error!("winapi: {}", code);
-            }
+        if handle != INVALID_HANDLE_VALUE && unsafe { um::handleapi::CloseHandle(self.handle) } == 0
+        {
+            let code = unsafe { um::errhandlingapi::GetLastError() };
+            log::error!("winapi: {}", code);
         }
     }
 }
