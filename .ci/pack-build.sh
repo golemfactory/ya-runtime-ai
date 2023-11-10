@@ -35,7 +35,7 @@ generate_asset() {
   local asset_type=$1
   local bins="$2"
   local non_exe="$3"
-  local TARGET_DIR=releases/golem-${asset_type}-${OS_NAME}-${TAG_NAME}
+  local TARGET_DIR=releases/${asset_type}-${OS_NAME}-${TAG_NAME}
   mkdir -p "$TARGET_DIR"
   for component in $bins $non_exe; do
     strip -x target/${target}release/${component}${exe}
@@ -49,16 +49,16 @@ generate_asset() {
     done
   fi
   if [ "$OS_NAME" = "windows" ]; then
-    echo "::set-output name=${asset_type}Artifact::golem-${asset_type}-${OS_NAME}-${TAG_NAME}.zip"
+    echo "::set-output name=${asset_type}Artifact::${asset_type}-${OS_NAME}-${TAG_NAME}.zip"
     echo "::set-output name=${asset_type}Media::application/zip"
-    (cd "$TARGET_DIR" && 7z a "../golem-${asset_type}-${OS_NAME}-${TAG_NAME}.zip" * )
+    (cd "$TARGET_DIR" && 7z a "../${asset_type}-${OS_NAME}-${TAG_NAME}.zip" * )
   else
-    echo "::set-output name=${asset_type}Artifact::golem-${asset_type}-${OS_NAME}-${TAG_NAME}.tar.gz"
+    echo "::set-output name=${asset_type}Artifact::${asset_type}-${OS_NAME}-${TAG_NAME}.tar.gz"
     echo "::set-output name=${asset_type}Media::application/tar+gzip"
-    (cd releases && tar czf "golem-${asset_type}-${OS_NAME}-${TAG_NAME}.tar.gz" "golem-${asset_type}-${OS_NAME}-${TAG_NAME}")
-    du -h "releases/golem-${asset_type}-${OS_NAME}-${TAG_NAME}.tar.gz"
+    (cd releases && tar czf "${asset_type}-${OS_NAME}-${TAG_NAME}.tar.gz" "${asset_type}-${OS_NAME}-${TAG_NAME}")
+    du -h "releases/${asset_type}-${OS_NAME}-${TAG_NAME}.tar.gz"
   fi
 }
 
 generate_asset "runtime" "ya-runtime-ai"
-generate_asset "framework" "dummy" "ya-dummy-ai.json"
+generate_asset "dummy-framework" "dummy" "ya-dummy-ai.json"
