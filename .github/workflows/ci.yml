@@ -14,8 +14,13 @@ env:
 jobs:
   test:
     name: CI
-
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        os:
+          - ubuntu
+          - windows
   
     steps:
       - uses: actions/checkout@v4
@@ -39,10 +44,24 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: cargo build --workspace --release
 
+      - name: Move descriptor
+        run: mv conf/ya-dummy-ai.json target/release/conf/ya-dummy-ai.json
+
+      - name: Pack
+        id: pack
+        shell: bash
+        env:
+          OS_NAME: ${{ matrix.os }}
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          bash .ci/pack-build.sh
+
       - name: Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          files: target/release/*.exe
+          files: |
+            releases/golem-runtime-${{ matrix.os }}-${{ github.ref }}.*
+            releases/golem-framework-${{ matrix.os }}-${{ github.ref }}.*
           prerelease: ${{ startsWith(github.ref, 'refs/tags/pre-rel-v') }}
