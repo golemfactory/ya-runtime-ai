@@ -15,11 +15,9 @@ not_empty "$OS_NAME" OS_NAME
 
 if [ "$OS_NAME" = "ubuntu" ]; then
   OS_NAME=linux
-  target=x86_64-unknown-linux-musl/
   exe=""
 elif [ "$OS_NAME" == "linux-aarch64" ]; then
   OS_NAME=linux_aarch64
-  target=aarch64-unknown-linux-musl/
   exe=""
 elif [ "$OS_NAME" == "macos" ]; then
   OS_NAME=osx
@@ -38,14 +36,14 @@ generate_asset() {
   local TARGET_DIR=releases/${asset_type}-${OS_NAME}-${TAG_NAME}
   mkdir -p "$TARGET_DIR"
   for component in $bins $non_exe; do
-    strip -x target/${target}release/${component}${exe}
+    strip -x target/release/${component}${exe}
   done
   for bin in $bins; do
-    cp "target/${target}release/${bin}${exe}" "$TARGET_DIR/"
+    cp "target/release/${bin}${exe}" "$TARGET_DIR/"
   done
   if test -n "$non_exe"; then
     for bin in $non_exe; do
-      cp "target/${target}release/${bin}" "$TARGET_DIR/"
+      cp "target/release/${bin}" "$TARGET_DIR/"
     done
   fi
   if [ "$OS_NAME" = "windows" ]; then
