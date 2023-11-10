@@ -35,7 +35,7 @@ generate_asset() {
   local non_exe="$3"
   local TARGET_DIR=releases/${asset_type}-${OS_NAME}-${TAG_NAME}
   mkdir -p "$TARGET_DIR"
-  for component in $bins $non_exe; do
+  for component in $bins; do
     strip -x target/release/${component}${exe}
   done
   for bin in $bins; do

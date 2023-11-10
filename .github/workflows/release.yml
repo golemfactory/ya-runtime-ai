@@ -51,6 +51,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
-            releases/golem-runtime-.*
-            releases/golem-framework-.*
+            releases/runtime-.*
+            releases/dummy-framework-.*
           prerelease: ${{ startsWith(github.ref, 'refs/tags/pre-rel-v') }}
