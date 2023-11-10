@@ -40,6 +40,7 @@ jobs:
   release:
     name: CI
     runs-on: ${{ matrix.os }}-latest
+    if: startsWith(github.ref, 'refs/tags/')
     strategy:
       fail-fast: true
       matrix:
@@ -58,8 +59,7 @@ jobs:
 
       - run: cargo tree --locked
 
-      - name: Build Release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Build
         run: cargo build --workspace --release
 
       - name: Move descriptor
@@ -75,7 +75,6 @@ jobs:
           bash .ci/pack-build.sh
 
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
