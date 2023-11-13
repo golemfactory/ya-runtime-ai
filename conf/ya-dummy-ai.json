@@ -4,8 +4,7 @@
         "version": "0.1.0",
         "supervisor-path": "[..]\\ya-runtime-ai\\target\\debug\\ya-runtime-ai.exe",
         "extra-args": ["--runtime", "dummy"],
-        "description": "dummy ai runtime",
-        "properties": {
-        }
+        "description": "Dummy ai runtime for testing purposes",
+        "properties": {}
     }
 ]
