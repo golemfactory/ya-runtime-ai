@@ -5,6 +5,25 @@
         "supervisor-path": "[..]\\ya-runtime-ai\\target\\debug\\ya-runtime-ai.exe",
         "extra-args": ["--runtime", "dummy"],
         "description": "Dummy ai runtime for testing purposes",
-        "properties": {}
+        "properties": {},
+        "config": {
+            "counters": {
+                "golem.usage.gpu-sec": {
+                    "name": "gpu-sec",
+                    "description": "GpuPerHour",
+                    "price": true
+                },
+                "ai-runtime.requests": {
+                    "name": "num-requests",
+                    "description": "NumRequests",
+                    "price": true
+                },
+                "golem.usage.duration_sec": {
+                    "name": "duration",
+                    "description": "EnvPerHour",
+                    "price": true
+                }
+            }
+        }
     }
 ]
