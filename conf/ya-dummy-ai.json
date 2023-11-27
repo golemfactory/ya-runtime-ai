@@ -2,7 +2,7 @@
     {
         "name": "ai",
         "version": "0.1.0",
-        "supervisor-path": "[..]\\ya-runtime-ai\\target\\debug\\ya-runtime-ai.exe",
+        "supervisor-path": "ya-runtime-ai.exe",
         "extra-args": [
             "--runtime",
             "dummy"
