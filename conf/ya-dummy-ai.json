@@ -1,9 +1,12 @@
 [
     {
-        "name": "ai-dummy",
+        "name": "ai",
         "version": "0.1.0",
         "supervisor-path": "[..]\\ya-runtime-ai\\target\\debug\\ya-runtime-ai.exe",
-        "extra-args": ["--runtime", "dummy"],
+        "extra-args": [
+            "--runtime",
+            "dummy"
+        ],
         "description": "Dummy ai runtime for testing purposes",
         "properties": {},
         "config": {

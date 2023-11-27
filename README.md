@@ -3,21 +3,7 @@
 ## Provider setup
 
 Run `cargo build --workspace`.
-Create sample `exeunits-descriptor.json` (with correct `supervisor-path`):
-
-```json
-[
-    {
-        "name": "ai-dummy",
-        "version": "0.1.0",
-        "supervisor-path": "[..]\\ya-runtime-ai\\target\\debug\\ya-runtime-ai.exe",
-        "extra-args": ["--runtime", "dummy"],
-        "description": "dummy ai runtime",
-        "properties": {
-        }
-    }
-]
-```
+Create exeunits descriptor json file using [ya-runtime-ai.json](conf/ya-dummy-ai.json) as an example (with correct `supervisor-path`).
 
 Point `ya-provider` to exeunits descriptor using `EXE_UNIT_PATH` variable.
 
