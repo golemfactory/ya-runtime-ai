@@ -56,7 +56,9 @@ enum ProcessControllerInner {
 
 pub fn find_exe(file_name: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
     let exe = current_exe()?;
-    let parent_dir = exe.parent().context("Unable to get parent dir of {exe:?}")?;
+    let parent_dir = exe
+        .parent()
+        .context("Unable to get parent dir of {exe:?}")?;
     let exe_file = parent_dir.join(&file_name);
     if exe_file.exists() {
         return Ok(exe_file);

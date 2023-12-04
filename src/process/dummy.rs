@@ -6,16 +6,13 @@ use tokio::process::{Child, ChildStdout, Command};
 use super::{AiFramework, RuntimeArgs, Usage};
 
 #[derive(Clone)]
-pub struct Dummy {
-}
+pub struct Dummy {}
 
-impl Dummy {
-}
+impl Dummy {}
 
 impl Unpin for Dummy {}
 
 impl AiFramework for Dummy {
-
     fn parse_args(args: &[String]) -> anyhow::Result<RuntimeArgs> {
         let dummy_filename = dummy_filename();
         RuntimeArgs::new(&dummy_filename, args)
@@ -54,7 +51,6 @@ impl AiFramework for Dummy {
     }
 }
 
-
-fn dummy_filename() -> String { 
+fn dummy_filename() -> String {
     format!("dummy{}", std::env::consts::EXE_SUFFIX)
 }
