@@ -1,3 +1,4 @@
+use anyhow::Context;
 use clap::Parser;
 use std::cell::RefCell;
 use std::env::current_exe;
@@ -7,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::pin::{pin, Pin};
 use std::process::ExitStatus;
 use std::rc::Rc;
-use std::task::{Context, Poll};
+use std::task::Poll;
 
 use tokio::process::*;
 
@@ -53,21 +54,16 @@ enum ProcessControllerInner {
     Stopped {},
 }
 
-pub fn find_exe(file_name: impl AsRef<Path>) -> std::io::Result<PathBuf> {
-    let file_name = file_name.as_ref();
+pub fn find_exe(file_name: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
     let exe = current_exe()?;
-    (|| {
-        let f = exe.parent()?.join(file_name);
-        if f.exists() {
-            return Some(f);
-        }
-        let f = exe.parent()?.parent()?.join(file_name);
-        if f.exists() {
-            return Some(f);
-        }
-        None
-    })()
-    .ok_or_else(|| std::io::ErrorKind::NotFound.into())
+    let parent_dir = exe
+        .parent()
+        .context("Unable to get parent dir of {exe:?}")?;
+    let exe_file = parent_dir.join(&file_name);
+    if exe_file.exists() {
+        return Ok(exe_file);
+    }
+    anyhow::bail!("Unable to get dummy runtime base dir");
 }
 
 impl<T: AiFramework + Clone + 'static> ProcessController<T> {
@@ -112,7 +108,7 @@ impl<T: AiFramework + Clone + 'static> ProcessController<T> {
 impl<T> Future for ProcessController<T> {
     type Output = std::io::Result<ExitStatus>;
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         match *self.inner.borrow_mut() {
             ProcessControllerInner::Working { ref mut child, .. } => {
                 let fut = pin!(child.wait());
