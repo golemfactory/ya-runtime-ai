@@ -135,6 +135,7 @@ async fn main() -> anyhow::Result<()> {
 async fn handle_cli(cli: Cli) -> anyhow::Result<()> {
     match cli.runtime.to_lowercase().as_str() {
         "dummy" => run::<process::dummy::Dummy>(cli).await,
+        "automatic" => run::<process::automatic::Automatic>(cli).await,
         _ => {
             let err = anyhow::format_err!("Unsupported framework {}", cli.runtime);
             log::error!("{}", err);

@@ -13,6 +13,7 @@ use std::task::Poll;
 use tokio::process::*;
 
 pub mod dummy;
+pub mod automatic;
 pub mod win;
 
 #[derive(Default, Clone)]
