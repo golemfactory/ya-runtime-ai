@@ -1,0 +1,120 @@
+{
+  "agreementId": "1a5aca0938ad97055c55cebb93768a7030d88213e1a0cbffe239eff0ff25859b",
+  "demand": {
+    "constraints": "(&(golem.node.debug.subnet=public)\n\t(golem.com.payment.platform.erc20-goerli-tglm.address=*)\n\t(golem.com.pricing.model=linear)\n\t(&(golem.runtime.name=ai)\n\t(golem.runtime.capabilities=dummy)))",
+    "demandId": "73e0eceee475401b94444bae30e6792f-3e43adc8ba85e60339bb1ea1a97a094ce313b3b7bde57c2e89410b082996c018",
+    "properties": {
+      "golem": {
+        "com": {
+          "payment": {
+            "chosen-platform": "erc20-goerli-tglm",
+            "debit-notes": {
+              "accept-timeout?": 240
+            },
+            "platform": {
+              "erc20-goerli-tglm": {
+                "address": "0xbcff64182c791e517576b462eaf25d3b4d2af69c"
+              }
+            }
+          }
+        },
+        "node": {
+          "debug": {
+            "subnet": "public"
+          }
+        },
+        "srv": {
+          "caps": {
+            "multi-activity": true
+          },
+          "comp": {
+            "expiration": 1701269789361
+          }
+        }
+      }
+    },
+    "requestorId": "0xbcff64182c791e517576b462eaf25d3b4d2af69c",
+    "timestamp": "2023-11-29T11:56:53.605702896Z"
+  },
+  "offer": {
+    "constraints": "(&\n  (golem.srv.comp.expiration>1701258203523)\n  (golem.node.debug.subnet=public)\n)",
+    "offerId": "4fde999a42704b4691b6a363c5f29684-28babdce573e4f4955ade6294a46d6260752d19ef487f747f76b5b29326d49e6",
+    "properties": {
+      "golem": {
+        "com": {
+          "payment": {
+            "debit-notes": {
+              "accept-timeout?": 240
+            },
+            "platform": {
+              "erc20-goerli-tglm": {
+                "address": "0xfadb10dd14828de1b2ec5ce1f238f54bd50b5952"
+              }
+            }
+          },
+          "pricing": {
+            "model": {
+              "@tag": "linear",
+              "linear": {
+                "coeffs": [
+                  0.001,
+                  0.003,
+                  0.002,
+                  0.004
+                ]
+              }
+            }
+          },
+          "scheme": "payu",
+          "usage": {
+            "vector": [
+              "ai-runtime.requests",
+              "golem.usage.duration_sec",
+              "golem.usage.gpu-sec"
+            ]
+          }
+        },
+        "inf": {
+          "cpu": {
+            "architecture": "x86_64",
+            "cores": 6,
+            "threads": 11
+          },
+          "mem": {
+            "gib": 21.31261490285397
+          },
+          "storage": {
+            "gib": 7.755588531494141
+          }
+        },
+        "node": {
+          "debug": {
+            "subnet": "public"
+          },
+          "net": {
+            "is-public": true
+          }
+        },
+        "runtime": {
+          "capabilities": [
+            "dummy"
+          ],
+          "name": "ai",
+          "version": "0.1.0"
+        },
+        "srv": {
+          "caps": {
+            "multi-activity": true,
+            "payload-manifest": false
+          }
+        }
+      }
+    },
+    "providerId": "0xfadb10dd14828de1b2ec5ce1f238f54bd50b5952",
+    "timestamp": "2023-11-29T11:56:53.605702896Z"
+  },
+  "proposedSignature": "NoSignature",
+  "state": "Pending",
+  "timestamp": "2023-11-29T11:56:53.605702896Z",
+  "validTo": "2023-11-29T12:56:53.604404Z"
+}

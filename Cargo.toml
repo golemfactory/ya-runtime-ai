@@ -11,26 +11,29 @@ members = [
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", branch="release/v0.13", features = ["activity", "appkey"] }
-ya-runtime-api= { git = "https://github.com/golemfactory/yagna.git", branch="release/v0.13" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", branch = "extract-exeunit-transfer-component", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", branch = "extract-exeunit-transfer-component" }
 ya-service-bus = "0.6.1"
 ya-client-model = "0.5.0"
+ya-agreement-utils = "0.5"
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", branch = "extract-exeunit-transfer-component" }
 
-actix-rt="2"
+actix = "0.13"
+actix-rt = "2"
 log = "0.4"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "1.0"
-clap = {  version = "4", features = ["derive", "env"] }
+clap = { version = "4", features = ["derive", "env"] }
 dotenv = "0.15"
 anyhow = "1.0"
-env_logger="0.10"
+env_logger = "0.10"
 yansi = "0.5"
 chrono = "0.4"
 tokio = { version = "1.32", features = ["macros"] }
 futures = "0.3"
 flexi_logger = { version = "0.27", features = ["colors"] }
 regex = "1"
-reqwest="0.11"
+reqwest = "0.11"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["jobapi2", "processthreadsapi"] }
