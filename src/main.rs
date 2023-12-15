@@ -19,7 +19,7 @@ use ya_client_model::activity::{ActivityUsage, CommandResult, ExeScriptCommandRe
 use ya_core_model::activity;
 use ya_core_model::activity::RpcMessageError;
 use ya_service_bus::typed as gsb;
-use ya_transfer::transfer::{DeployImage, TransferService, TransferServiceContext};
+use ya_transfer::transfer::{DeployImage, Shutdown, TransferService, TransferServiceContext};
 
 use crate::agreement::AgreementDesc;
 use crate::cli::*;
@@ -32,14 +32,10 @@ mod logger;
 mod offer_template;
 mod process;
 
-async fn send_state(
-    report_url: &str,
-    activity_id: &str,
-    new_state: ActivityState,
-) -> anyhow::Result<()> {
-    Ok(gsb::service(report_url)
+async fn send_state<T>(ctx: &ExeUnitContext<T>, new_state: ActivityState) -> anyhow::Result<()> {
+    Ok(gsb::service(ctx.report_url.clone())
         .call(activity::local::SetState::new(
-            activity_id.into(),
+            ctx.activity_id.clone().into(),
             new_state,
             None,
         ))
@@ -204,6 +200,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
     {
         let batch: Rc<RefCell<HashMap<String, Vec<ExeScriptCommandResult>>>> = Default::default();
         let batch_results = batch.clone();
+        let ctx = ctx.clone();
 
         gsb::bind(&exe_unit_url, move |exec: activity::Exec| {
             let ctx = ctx.clone();
@@ -215,12 +212,19 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                     match exe {
                         ExeScriptCommand::Deploy { .. } => {
                             send_state(
-                                &ctx.report_url,
-                                &ctx.activity_id,
-                                ActivityState::from(StatePair(State::Deployed, None)),
+                                &ctx,
+                                ActivityState::from(StatePair(
+                                    State::Initialized,
+                                    Some(State::Deployed),
+                                )),
                             )
                             .await
                             .map_err(|e| RpcMessageError::Service(e.to_string()))?;
+
+                            log::info!(
+                                "Got Deploy command. Deploying image: {}",
+                                ctx.agreement.task_package
+                            );
 
                             ctx.transfers
                                 .send(DeployImage {
@@ -232,9 +236,13 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                                 .map_err(|e| {
                                     RpcMessageError::Service(format!("DeployImage failed: {e}"))
                                 })?;
-                            log::info!(
-                                "Got deploy command, changing state of exe unit to deployed",
-                            );
+
+                            log::info!("Image deployed: {}", ctx.agreement.task_package);
+
+                            send_state(&ctx, ActivityState::from(StatePair(State::Deployed, None)))
+                                .await
+                                .map_err(|e| RpcMessageError::Service(e.to_string()))?;
+
                             result.push(ExeScriptCommandResult {
                                 index: result.len() as u32,
                                 result: CommandResult::Ok,
@@ -253,8 +261,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                             log::debug!("Start cmd model: {}", args.model);
 
                             send_state(
-                                &ctx.report_url,
-                                &ctx.activity_id,
+                                &ctx,
                                 ActivityState::from(StatePair(State::Deployed, Some(State::Ready))),
                             )
                             .await
@@ -266,13 +273,9 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                                 .map_err(|e| RpcMessageError::Activity(e.to_string()))?;
                             log::debug!("Started process");
 
-                            send_state(
-                                &ctx.report_url,
-                                &ctx.activity_id,
-                                ActivityState::from(StatePair(State::Ready, None)),
-                            )
-                            .await
-                            .map_err(|e| RpcMessageError::Service(e.to_string()))?;
+                            send_state(&ctx, ActivityState::from(StatePair(State::Ready, None)))
+                                .await
+                                .map_err(|e| RpcMessageError::Service(e.to_string()))?;
 
                             log::info!("Got start command, changing state of exe unit to ready",);
                             result.push(ExeScriptCommandResult {
@@ -287,9 +290,9 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                         }
                         ExeScriptCommand::Terminate { .. } => {
                             ctx.process_controller.stop().await;
+                            ctx.transfers.send(Shutdown {}).await.ok();
                             send_state(
-                                &ctx.report_url,
-                                &ctx.activity_id,
+                                &ctx,
                                 ActivityState::from(StatePair(State::Terminated, None)),
                             )
                             .await
@@ -336,8 +339,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
         });
     };
     send_state(
-        report_url,
-        activity_id,
+        &ctx,
         ActivityState::from(StatePair(State::Initialized, None)),
     )
     .await?;
