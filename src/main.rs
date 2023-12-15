@@ -223,12 +223,12 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
 
                             log::info!(
                                 "Got Deploy command. Deploying image: {}",
-                                ctx.agreement.task_package
+                                ctx.agreement.model
                             );
 
                             ctx.transfers
                                 .send(DeployImage {
-                                    task_package: Some(ctx.agreement.task_package.clone()),
+                                    task_package: Some(ctx.agreement.model.clone()),
                                 })
                                 .await
                                 .map_err(|e| format!("Failed to send DeployImage: {e}"))
@@ -237,7 +237,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                                     RpcMessageError::Service(format!("DeployImage failed: {e}"))
                                 })?;
 
-                            log::info!("Image deployed: {}", ctx.agreement.task_package);
+                            log::info!("Image deployed: {}", ctx.agreement.model);
 
                             send_state(&ctx, ActivityState::from(StatePair(State::Deployed, None)))
                                 .await

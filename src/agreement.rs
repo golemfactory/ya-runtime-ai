@@ -6,7 +6,7 @@ use ya_agreement_utils::AgreementView;
 #[derive(Clone)]
 pub struct AgreementDesc {
     pub counters: Vec<String>,
-    pub task_package: String,
+    pub model: String,
 }
 
 impl AgreementDesc {
@@ -21,14 +21,11 @@ impl AgreementDesc {
         let counters: Vec<String> = agreement
             .pointer_typed("/offer/properties/golem/com/usage/vector")
             .map_err(|e| anyhow!("Invalid Agreement: Error loading usage counters: {e}"))?;
-        let task_package: String = agreement
-            .pointer_typed("/demand/properties/golem/srv/comp/task_package")
-            .map_err(|e| anyhow!("Invalid Agreement: Failed to load `task_package`: {e}"))?;
+        let model: String = agreement
+            .pointer_typed("/demand/properties/golem/!exp/ai/v1/srv/comp/ai/model")
+            .map_err(|e| anyhow!("Invalid Agreement: Failed to find ai model: {e}"))?;
 
-        Ok(AgreementDesc {
-            counters,
-            task_package,
-        })
+        Ok(AgreementDesc { counters, model })
     }
 
     pub fn resolve_counter(&self, counter_id: &str) -> Option<usize> {

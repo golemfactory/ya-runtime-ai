@@ -1,10 +1,24 @@
 {
-  "agreementId": "1a5aca0938ad97055c55cebb93768a7030d88213e1a0cbffe239eff0ff25859b",
+  "agreementId": "65b470a4702bbeeb61848835cda6b6da170788dadea6e2fb3c79d57a56108aad",
   "demand": {
     "constraints": "(&(golem.node.debug.subnet=public)\n\t(golem.com.payment.platform.erc20-goerli-tglm.address=*)\n\t(golem.com.pricing.model=linear)\n\t(&(golem.runtime.name=ai)\n\t(golem.runtime.capabilities=dummy)))",
-    "demandId": "73e0eceee475401b94444bae30e6792f-3e43adc8ba85e60339bb1ea1a97a094ce313b3b7bde57c2e89410b082996c018",
+    "demandId": "e5877b5ffa204aa882067613dfe1e866-7b06e1ce642491984330d4c114e6c3e7be9f5371feb00e48f601335992328431",
     "properties": {
       "golem": {
+        "!exp": {
+          "ai": {
+            "v1": {
+              "srv": {
+                "comp": {
+                  "ai": {
+                    "model": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors?download=true",
+                    "model-format": "safetensors"
+                  }
+                }
+              }
+            }
+          }
+        },
         "com": {
           "payment": {
             "chosen-platform": "erc20-goerli-tglm",
@@ -13,7 +27,7 @@
             },
             "platform": {
               "erc20-goerli-tglm": {
-                "address": "0xbcff64182c791e517576b462eaf25d3b4d2af69c"
+                "address": "0x82a630d2447ffd282657978f9f76c02da8be9819"
               }
             }
           }
@@ -28,17 +42,17 @@
             "multi-activity": true
           },
           "comp": {
-            "expiration": 1701269789361
+            "expiration": 1702671890427
           }
         }
       }
     },
-    "requestorId": "0xbcff64182c791e517576b462eaf25d3b4d2af69c",
-    "timestamp": "2023-11-29T11:56:53.605702896Z"
+    "requestorId": "0x82a630d2447ffd282657978f9f76c02da8be9819",
+    "timestamp": "2023-12-15T17:24:51.436205004Z"
   },
   "offer": {
-    "constraints": "(&\n  (golem.srv.comp.expiration>1701258203523)\n  (golem.node.debug.subnet=public)\n)",
-    "offerId": "4fde999a42704b4691b6a363c5f29684-28babdce573e4f4955ade6294a46d6260752d19ef487f747f76b5b29326d49e6",
+    "constraints": "(&\n  (golem.srv.comp.expiration>1702660586846)\n  (golem.node.debug.subnet=public)\n)",
+    "offerId": "dd78921d669a404e85b4070ad8a5fe9d-d594c954e653273ebd097281c98bbc8302a5b346a072c52c0a4075eeca9d58ae",
     "properties": {
       "golem": {
         "com": {
@@ -57,10 +71,10 @@
               "@tag": "linear",
               "linear": {
                 "coeffs": [
-                  0.001,
-                  0.003,
+                  0.004,
                   0.002,
-                  0.004
+                  0.003,
+                  0.001
                 ]
               }
             }
@@ -84,12 +98,15 @@
             "gib": 21.31261490285397
           },
           "storage": {
-            "gib": 7.755588531494141
+            "gib": 5.411262512207031
           }
         },
         "node": {
           "debug": {
             "subnet": "public"
+          },
+          "id": {
+            "name": "nieznanysprawiciel-gamerhash"
           },
           "net": {
             "is-public": true
@@ -111,10 +128,10 @@
       }
     },
     "providerId": "0xfadb10dd14828de1b2ec5ce1f238f54bd50b5952",
-    "timestamp": "2023-11-29T11:56:53.605702896Z"
+    "timestamp": "2023-12-15T17:24:51.436205004Z"
   },
   "proposedSignature": "NoSignature",
   "state": "Pending",
-  "timestamp": "2023-11-29T11:56:53.605702896Z",
-  "validTo": "2023-11-29T12:56:53.604404Z"
+  "timestamp": "2023-12-15T17:24:51.436205004Z",
+  "validTo": "2023-12-15T18:24:51.432171Z"
 }
