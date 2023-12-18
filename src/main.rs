@@ -140,6 +140,8 @@ struct ExeUnitContext<T> {
     pub agreement: AgreementDesc,
     pub transfers: Addr<TransferService>,
     pub process_controller: ProcessController<T>,
+
+    pub batches: Rc<RefCell<HashMap<String, Vec<ExeScriptCommandResult>>>>,
 }
 
 async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
@@ -186,6 +188,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
         })
         .start(),
         process_controller: process::ProcessController::<T>::new(),
+        batches: Rc::new(RefCell::new(Default::default())),
     };
 
     let activity_pinger = activity_loop(
@@ -198,15 +201,25 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
     let _job = process::win::JobObject::new()?;
 
     {
-        let batch: Rc<RefCell<HashMap<String, Vec<ExeScriptCommandResult>>>> = Default::default();
+        let batch = ctx.batches.clone();
         let batch_results = batch.clone();
         let ctx = ctx.clone();
 
         gsb::bind(&exe_unit_url, move |exec: activity::Exec| {
             let ctx = ctx.clone();
+            let exec = exec.clone();
             let batch = batch.clone();
+            let batch_id = exec.batch_id.clone();
+            let batch_id_ = exec.batch_id.clone();
 
-            async move {
+            {
+                let _ = ctx
+                    .batches
+                    .borrow_mut()
+                    .insert(exec.batch_id.clone(), vec![]);
+            }
+
+            let script_future = async move {
                 let mut result = Vec::new();
                 for exe in &exec.exe_script {
                     match exe {
@@ -323,18 +336,41 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                 );
 
                 {
-                    let _ = batch.borrow_mut().insert(exec.batch_id.clone(), result);
+                    let _ = ctx
+                        .batches
+                        .borrow_mut()
+                        .insert(exec.batch_id.clone(), result);
                 }
 
                 Ok(exec.batch_id)
             }
+            .map_err(move |e| {
+                let mut bind_batch = batch.borrow_mut();
+                let result = bind_batch.entry(batch_id_).or_insert(vec![]);
+
+                let index = result.len() as u32;
+                result.push(ExeScriptCommandResult {
+                    index,
+                    result: CommandResult::Error,
+                    stdout: None,
+                    stderr: None,
+                    message: Some(e.to_string()),
+                    is_batch_finished: true,
+                    event_date: Utc::now(),
+                });
+            });
+            tokio::task::spawn_local(script_future);
+            future::ok(batch_id)
         });
 
         gsb::bind(&exe_unit_url, move |exec: activity::GetExecBatchResults| {
             if let Some(result) = batch_results.borrow().get(&exec.batch_id) {
                 future::ok(result.clone())
             } else {
-                future::err(RpcMessageError::NotFound(exec.batch_id))
+                future::err(RpcMessageError::NotFound(format!(
+                    "Batch id={}",
+                    exec.batch_id
+                )))
             }
         });
     };
