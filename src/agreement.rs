@@ -52,7 +52,7 @@ mod tests {
     #[test]
     fn test_loading_agreement() {
         let agreement_path = test_agreement_path();
-        let desc = AgreementDesc::load(&agreement_path).unwrap();
+        let desc = AgreementDesc::load(agreement_path).unwrap();
         let usage = [
             "ai-runtime.requests",
             "golem.usage.duration_sec",
