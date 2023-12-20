@@ -35,7 +35,7 @@ mod process;
 async fn send_state<T>(ctx: &ExeUnitContext<T>, new_state: ActivityState) -> anyhow::Result<()> {
     Ok(gsb::service(ctx.report_url.clone())
         .call(activity::local::SetState::new(
-            ctx.activity_id.clone().into(),
+            ctx.activity_id.clone(),
             new_state,
             None,
         ))
@@ -245,7 +245,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                                 })
                                 .await
                                 .map_err(|e| format!("Failed to send DeployImage: {e}"))
-                                .map_err(|e| RpcMessageError::Service(e.into()))?
+                                .map_err(RpcMessageError::Service)?
                                 .map_err(|e| {
                                     RpcMessageError::Service(format!("DeployImage failed: {e}"))
                                 })?;
