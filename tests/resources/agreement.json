@@ -1,0 +1,137 @@
+{
+  "agreementId": "65b470a4702bbeeb61848835cda6b6da170788dadea6e2fb3c79d57a56108aad",
+  "demand": {
+    "constraints": "(&(golem.node.debug.subnet=public)\n\t(golem.com.payment.platform.erc20-goerli-tglm.address=*)\n\t(golem.com.pricing.model=linear)\n\t(&(golem.runtime.name=ai)\n\t(golem.runtime.capabilities=dummy)))",
+    "demandId": "e5877b5ffa204aa882067613dfe1e866-7b06e1ce642491984330d4c114e6c3e7be9f5371feb00e48f601335992328431",
+    "properties": {
+      "golem": {
+        "!exp": {
+          "ai": {
+            "v1": {
+              "srv": {
+                "comp": {
+                  "ai": {
+                    "model": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors?download=true",
+                    "model-format": "safetensors"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "com": {
+          "payment": {
+            "chosen-platform": "erc20-goerli-tglm",
+            "debit-notes": {
+              "accept-timeout?": 240
+            },
+            "platform": {
+              "erc20-goerli-tglm": {
+                "address": "0x82a630d2447ffd282657978f9f76c02da8be9819"
+              }
+            }
+          }
+        },
+        "node": {
+          "debug": {
+            "subnet": "public"
+          }
+        },
+        "srv": {
+          "caps": {
+            "multi-activity": true
+          },
+          "comp": {
+            "expiration": 1702671890427
+          }
+        }
+      }
+    },
+    "requestorId": "0x82a630d2447ffd282657978f9f76c02da8be9819",
+    "timestamp": "2023-12-15T17:24:51.436205004Z"
+  },
+  "offer": {
+    "constraints": "(&\n  (golem.srv.comp.expiration>1702660586846)\n  (golem.node.debug.subnet=public)\n)",
+    "offerId": "dd78921d669a404e85b4070ad8a5fe9d-d594c954e653273ebd097281c98bbc8302a5b346a072c52c0a4075eeca9d58ae",
+    "properties": {
+      "golem": {
+        "com": {
+          "payment": {
+            "debit-notes": {
+              "accept-timeout?": 240
+            },
+            "platform": {
+              "erc20-goerli-tglm": {
+                "address": "0xfadb10dd14828de1b2ec5ce1f238f54bd50b5952"
+              }
+            }
+          },
+          "pricing": {
+            "model": {
+              "@tag": "linear",
+              "linear": {
+                "coeffs": [
+                  0.004,
+                  0.002,
+                  0.003,
+                  0.001
+                ]
+              }
+            }
+          },
+          "scheme": "payu",
+          "usage": {
+            "vector": [
+              "ai-runtime.requests",
+              "golem.usage.duration_sec",
+              "golem.usage.gpu-sec"
+            ]
+          }
+        },
+        "inf": {
+          "cpu": {
+            "architecture": "x86_64",
+            "cores": 6,
+            "threads": 11
+          },
+          "mem": {
+            "gib": 21.31261490285397
+          },
+          "storage": {
+            "gib": 5.411262512207031
+          }
+        },
+        "node": {
+          "debug": {
+            "subnet": "public"
+          },
+          "id": {
+            "name": "nieznanysprawiciel-gamerhash"
+          },
+          "net": {
+            "is-public": true
+          }
+        },
+        "runtime": {
+          "capabilities": [
+            "dummy"
+          ],
+          "name": "ai",
+          "version": "0.1.0"
+        },
+        "srv": {
+          "caps": {
+            "multi-activity": true,
+            "payload-manifest": false
+          }
+        }
+      }
+    },
+    "providerId": "0xfadb10dd14828de1b2ec5ce1f238f54bd50b5952",
+    "timestamp": "2023-12-15T17:24:51.436205004Z"
+  },
+  "proposedSignature": "NoSignature",
+  "state": "Pending",
+  "timestamp": "2023-12-15T17:24:51.436205004Z",
+  "validTo": "2023-12-15T18:24:51.432171Z"
+}

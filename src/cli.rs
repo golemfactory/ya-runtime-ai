@@ -19,21 +19,6 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /*
-    /// Execute commands from file
-    FromFile {
-        /// ExeUnit daemon GSB URL
-        #[arg(long)]
-        report_url: Option<String>,
-        /// ExeUnit service ID
-        #[arg(long)]
-        service_id: Option<String>,
-        /// Command file path
-        input: PathBuf,
-        #[command(flatten)]
-        args: RunArgs,
-    },
-     */
     /// Bind to Service Bus
     ServiceBus {
         /// ExeUnit service ID
@@ -45,7 +30,7 @@ pub enum Command {
     },
     /// Print an offer template in JSON format
     OfferTemplate,
-    /// Run runtime's test command
+    /// Run runtime's tests command
     Test,
 }
 
@@ -56,8 +41,8 @@ pub struct RunArgs {
     pub agreement: PathBuf,
     /// Working directory
     #[arg(long, short)]
-    pub work_dir: Option<PathBuf>,
+    pub work_dir: PathBuf,
     /// Common cache directory
     #[arg(long, short)]
-    pub cache_dir: Option<PathBuf>,
+    pub cache_dir: PathBuf,
 }
