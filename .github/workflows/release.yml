@@ -19,10 +19,6 @@ jobs:
         os:
           - ubuntu
           - windows
-
-    env:
-      X86_64_PC_WINDOWS_MSVC_OPENSSL_DIR: c:/vcpkg/installed/x64-windows-static
-      OPENSSL_STATIC: 1
       
     steps:
       - uses: actions/checkout@v4
@@ -34,12 +30,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - run: cargo tree --locked
-      
-      - name: Windows setup
-        if: matrix.os == 'windows'
-        run: |
-          vcpkg install openssl:x64-windows-static
-          vcpkg integrate install
 
       - name: Build
         run: cargo build --workspace --release
