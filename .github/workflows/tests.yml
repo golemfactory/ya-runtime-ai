@@ -22,10 +22,6 @@ jobs:
           - ubuntu
           - windows
 
-    env:
-      X86_64_PC_WINDOWS_MSVC_OPENSSL_DIR: c:/vcpkg/installed/x64-windows-static
-      OPENSSL_STATIC: 1
-
     steps:
       - uses: actions/checkout@v4
 
@@ -38,12 +34,5 @@ jobs:
 
       - run: cargo tree --locked
       - run: cargo fmt --all -- --check
-
-      - name: Windows setup
-        if: matrix.os == 'windows'
-        run: |
-          vcpkg install openssl:x64-windows-static
-          vcpkg integrate install
-
       - run: cargo clippy --all-targets --all-features --workspace -- -D warnings
       - run: cargo test --all-features --workspace
