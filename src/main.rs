@@ -1,11 +1,8 @@
 #![allow(dead_code)]
 
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::io;
 use std::io::Write;
 use std::pin::pin;
-use std::rc::Rc;
 use std::time::Duration;
 
 use actix::prelude::*;
@@ -14,19 +11,23 @@ use clap::Parser;
 use futures::prelude::*;
 
 use ya_client_model::activity::activity_state::*;
+use ya_client_model::activity::ActivityUsage;
 use ya_client_model::activity::ExeScriptCommand;
-use ya_client_model::activity::{ActivityUsage, CommandResult, ExeScriptCommandResult};
 use ya_core_model::activity;
 use ya_core_model::activity::RpcMessageError;
 use ya_service_bus::typed as gsb;
-use ya_transfer::transfer::{DeployImage, Shutdown, TransferService, TransferServiceContext};
+use ya_transfer::transfer::{
+    DeployImage, Progress, Shutdown, TransferService, TransferServiceContext,
+};
 
 use crate::agreement::AgreementDesc;
+use crate::batches::Batches;
 use crate::cli::*;
 use crate::logger::*;
 use crate::process::ProcessController;
 
 mod agreement;
+mod batches;
 mod cli;
 mod logger;
 mod offer_template;
@@ -141,7 +142,7 @@ struct ExeUnitContext<T> {
     pub transfers: Addr<TransferService>,
     pub process_controller: ProcessController<T>,
 
-    pub batches: Rc<RefCell<HashMap<String, Vec<ExeScriptCommandResult>>>>,
+    pub batches: Batches,
 }
 
 async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
@@ -184,11 +185,11 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
         transfers: TransferService::new(TransferServiceContext {
             work_dir: args.work_dir.clone(),
             cache_dir: args.cache_dir.clone(),
-            task_package: None,
+            ..TransferServiceContext::default()
         })
         .start(),
         process_controller: process::ProcessController::<T>::new(),
-        batches: Rc::new(RefCell::new(Default::default())),
+        batches: Batches::default(),
     };
 
     let activity_pinger = activity_loop(
@@ -208,19 +209,12 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
         gsb::bind(&exe_unit_url, move |exec: activity::Exec| {
             let ctx = ctx.clone();
             let exec = exec.clone();
-            let batch = batch.clone();
             let batch_id = exec.batch_id.clone();
-            let batch_id_ = exec.batch_id.clone();
 
-            {
-                let _ = ctx
-                    .batches
-                    .borrow_mut()
-                    .insert(exec.batch_id.clone(), vec![]);
-            }
+            let batch = ctx.batches.start_batch(&exec.batch_id);
+            let batch_ = batch.clone();
 
             let script_future = async move {
-                let mut result = Vec::new();
                 for exe in &exec.exe_script {
                     match exe {
                         ExeScriptCommand::Deploy { .. } => {
@@ -239,9 +233,32 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                                 ctx.agreement.model
                             );
 
+                            let index = batch.ok_result();
+                            let (tx, mut rx) =
+                                tokio::sync::watch::channel::<Progress>(Progress::default());
+
+                            let batch_ = batch.clone();
+                            tokio::task::spawn_local(async move {
+                                while let Ok(_) = rx.changed().await {
+                                    let progress = { rx.borrow_and_update().clone() };
+                                    let percent = 100.0 * progress.progress as f64
+                                        / progress.size.unwrap_or(1) as f64;
+
+                                    log::info!(
+                                        "Deploy progress: {percent}% ({}/{})",
+                                        progress.progress,
+                                        progress.size.unwrap_or(0)
+                                    );
+                                    batch_.update_progress(index, &progress);
+
+                                    tokio::time::sleep(Duration::from_secs(1)).await;
+                                }
+                            });
+
                             ctx.transfers
                                 .send(DeployImage {
                                     task_package: Some(ctx.agreement.model.clone()),
+                                    progress: Some(tx),
                                 })
                                 .await
                                 .map_err(|e| format!("Failed to send DeployImage: {e}"))
@@ -255,16 +272,6 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                             send_state(&ctx, ActivityState::from(StatePair(State::Deployed, None)))
                                 .await
                                 .map_err(|e| RpcMessageError::Service(e.to_string()))?;
-
-                            result.push(ExeScriptCommandResult {
-                                index: result.len() as u32,
-                                result: CommandResult::Ok,
-                                stdout: None,
-                                stderr: None,
-                                message: None,
-                                is_batch_finished: false,
-                                event_date: Utc::now(),
-                            });
                         }
                         ExeScriptCommand::Start { args, .. } => {
                             log::debug!("Raw Start cmd args: {args:?}");
@@ -291,15 +298,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                                 .map_err(|e| RpcMessageError::Service(e.to_string()))?;
 
                             log::info!("Got start command, changing state of exe unit to ready",);
-                            result.push(ExeScriptCommandResult {
-                                index: result.len() as u32,
-                                result: CommandResult::Ok,
-                                stdout: None,
-                                stderr: None,
-                                message: None,
-                                is_batch_finished: false,
-                                event_date: Utc::now(),
-                            })
+                            batch.ok_result();
                         }
                         ExeScriptCommand::Terminate { .. } => {
                             ctx.process_controller.stop().await;
@@ -310,15 +309,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                             )
                             .await
                             .map_err(|e| RpcMessageError::Service(e.to_string()))?;
-                            result.push(ExeScriptCommandResult {
-                                index: result.len() as u32,
-                                result: CommandResult::Ok,
-                                stdout: None,
-                                stderr: None,
-                                message: None,
-                                is_batch_finished: false,
-                                event_date: Utc::now(),
-                            });
+                            batch.ok_result();
                         }
                         cmd => {
                             return Err(RpcMessageError::Activity(format!(
@@ -335,37 +326,20 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                     exec.exe_script
                 );
 
-                {
-                    let _ = ctx
-                        .batches
-                        .borrow_mut()
-                        .insert(exec.batch_id.clone(), result);
-                }
-
+                batch.finish();
                 Ok(exec.batch_id)
             }
             .map_err(move |e| {
-                let mut bind_batch = batch.borrow_mut();
-                let result = bind_batch.entry(batch_id_).or_insert(vec![]);
-
-                let index = result.len() as u32;
-                result.push(ExeScriptCommandResult {
-                    index,
-                    result: CommandResult::Error,
-                    stdout: None,
-                    stderr: None,
-                    message: Some(e.to_string()),
-                    is_batch_finished: true,
-                    event_date: Utc::now(),
-                });
+                batch_.err_result(Some(e.to_string()));
+                batch_.finish();
             });
             tokio::task::spawn_local(script_future);
             future::ok(batch_id)
         });
 
         gsb::bind(&exe_unit_url, move |exec: activity::GetExecBatchResults| {
-            if let Some(result) = batch_results.borrow().get(&exec.batch_id) {
-                future::ok(result.clone())
+            if let Some(result) = batch_results.results(&exec.batch_id) {
+                future::ok(result)
             } else {
                 future::err(RpcMessageError::NotFound(format!(
                     "Batch id={}",
