@@ -239,7 +239,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
 
                             let batch_ = batch.clone();
                             tokio::task::spawn_local(async move {
-                                while let Ok(_) = rx.changed().await {
+                                while rx.changed().await.is_ok() {
                                     let progress = { rx.borrow_and_update().clone() };
                                     let percent = 100.0 * progress.progress as f64
                                         / progress.size.unwrap_or(1) as f64;
