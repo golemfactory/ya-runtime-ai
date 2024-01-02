@@ -1,6 +1,6 @@
 use std::{path::Path, process::Stdio};
 
-use tokio::process::Command;
+use tokio::{process::Command, io::BufReader, io::AsyncBufReadExt, };
 
 use super::{AiFramework, RuntimeArgs};
 
@@ -28,6 +28,15 @@ impl AiFramework for Automatic {
     }
 
     fn run<ReportFn: Fn(super::Usage) + 'static>(stdout: tokio::process::ChildStdout, report_fn: ReportFn) {
-        log::info!("Run cmd");
+        tokio::spawn(async move {
+            let mut reader = BufReader::new(stdout).lines();
+
+            while let Some(line) = reader.next_line().await.unwrap_or_else(|e| {
+                log::debug!("Error reading line from stdout: {}", e);
+                None
+            }) {
+                log::debug!("{}", line);
+            }
+        });
     }
 }
