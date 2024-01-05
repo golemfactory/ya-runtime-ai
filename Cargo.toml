@@ -34,6 +34,10 @@ futures = "0.3"
 flexi_logger = { version = "0.27", features = ["colors"] }
 regex = "1"
 reqwest = "0.11"
+async-stream = "0.3.5"
+
+[dependencies.gsb-http-proxy]
+path = "../yagna/core/http-proxy"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["jobapi2", "processthreadsapi", "handleapi"] }
