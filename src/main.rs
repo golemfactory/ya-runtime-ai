@@ -13,6 +13,7 @@ use chrono::Utc;
 use clap::Parser;
 use futures::prelude::*;
 
+use tokio::select;
 use ya_client_model::activity::activity_state::*;
 use ya_client_model::activity::ExeScriptCommand;
 use ya_client_model::activity::{ActivityUsage, CommandResult, ExeScriptCommandResult};
@@ -25,12 +26,14 @@ use crate::agreement::AgreementDesc;
 use crate::cli::*;
 use crate::logger::*;
 use crate::process::ProcessController;
+use crate::signal::SignalMonitor;
 
 mod agreement;
 mod cli;
 mod logger;
 mod offer_template;
 mod process;
+mod signal;
 
 async fn send_state<T>(ctx: &ExeUnitContext<T>, new_state: ActivityState) -> anyhow::Result<()> {
     Ok(gsb::service(ctx.report_url.clone())
@@ -122,6 +125,13 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    select! {
+        res = handle_cli(cli) => res,
+        res = handle_signals() => res,
+    }
+}
+
+async fn handle_cli(cli: Cli) -> anyhow::Result<()> {
     match cli.runtime.to_lowercase().as_str() {
         "dummy" => run::<process::dummy::Dummy>(cli).await,
         _ => {
@@ -130,6 +140,12 @@ async fn main() -> anyhow::Result<()> {
             anyhow::bail!(err)
         }
     }
+}
+
+async fn handle_signals() -> anyhow::Result<()> {
+    let signal = SignalMonitor::default().recv().await?;
+    log::info!("{} received, Shutting down runtime...", signal);
+    Ok(())
 }
 
 #[derive(Clone)]
