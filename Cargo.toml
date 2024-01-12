@@ -11,9 +11,10 @@ members = [
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "6fd7b003e3d0947284d47d99b2944d293d329c53", features = ["activity", "appkey"] }
+#ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "6fd7b003e3d0947284d47d99b2944d293d329c53", features = ["activity", "appkey"] }
+ya-core-model = { path = "../yagna/core/model", features = ["activity", "appkey"] }
 ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "6fd7b003e3d0947284d47d99b2944d293d329c53" }
-ya-service-bus = "0.6.1"
+ya-service-bus = "0.6.3"
 ya-client-model = "0.5.0"
 ya-agreement-utils = "0.5"
 ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "6fd7b003e3d0947284d47d99b2944d293d329c53" }
@@ -33,11 +34,11 @@ tokio = { version = "1.32", features = ["macros"] }
 futures = "0.3"
 flexi_logger = { version = "0.27", features = ["colors"] }
 regex = "1"
-reqwest = "0.11"
+reqwest = { version = "0.11", features = ["blocking", "json"] }
 async-stream = "0.3.5"
-
-[dependencies.gsb-http-proxy]
-path = "../yagna/core/http-proxy"
+gsb-http-proxy = { path = "../yagna/core/http-proxy" }
+http = "0.2.11"
+bytes = "1.5.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["jobapi2", "processthreadsapi", "handleapi"] }

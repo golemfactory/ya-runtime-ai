@@ -12,8 +12,7 @@ use actix::prelude::*;
 use chrono::Utc;
 use clap::Parser;
 use futures::prelude::*;
-use async_stream::stream;
-use gsb_http_proxy::{GsbHttpCall, GsbHttpCallEvent};
+use gsb_http_proxy::GsbHttpCall;
 
 use ya_client_model::activity::activity_state::*;
 use ya_client_model::activity::ExeScriptCommand;
@@ -172,18 +171,9 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
         }
     };
 
-    log::info!("{:?}", args);
-    log::info!("CLI args: {:?}", &cli);
-    log::info!("Binding to GSB ...");
-
-    log::info!("Binding to GSB ... 1");
     let agreement_path = args.agreement.clone();
 
-    log::info!("Binding to GSB ... 1..1");
-
     let agreement = AgreementDesc::load(agreement_path)?;
-
-    log::info!("Binding to GSB ... 2");
 
     let ctx = ExeUnitContext {
         activity_id: activity_id.clone(),
@@ -199,8 +189,6 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
         batches: Rc::new(RefCell::new(Default::default())),
     };
 
-    log::info!("Binding to GSB ... 3");
-
     let activity_pinger = activity_loop(
         report_url,
         activity_id,
@@ -208,11 +196,8 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
         ctx.agreement.clone(),
     );
 
-    log::info!("Binding to GSB ... 4");
     #[cfg(target_os = "windows")]
     let _job = process::win::JobObject::new()?;
-
-    log::info!("Binding to GSB ... 5");
     {
         let batch = ctx.batches.clone();
         let batch_results = batch.clone();
@@ -380,8 +365,6 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
             future::ok(batch_id)
         });
 
-        log::info!("[GSB Bind]: GetExecBatchResults");
-
         gsb::bind(&exe_unit_url, move |exec: activity::GetExecBatchResults| {
             if let Some(result) = batch_results.borrow().get(&exec.batch_id) {
                 future::ok(result.clone())
@@ -393,45 +376,9 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
             }
         });
 
-        log::info!("[GSB Bind]: GsbHttpCall");
-
-        gsb::bind_stream(&exe_unit_url, move |http_call: GsbHttpCall| {
-
-            log::info!(">>>>>>>>>>>>>>>>  GsbHttpCall:  {}", http_call.host);
-
-            let _interval = tokio::time::interval(Duration::from_secs(1));
-            let stream = Box::pin(stream! {
-                for i in 0..10 {
-                    let msg = format!("called {} element #{}", http_call.host, i);
-
-                    let response = GsbHttpCallEvent {
-                        index: i,
-                        timestamp: Utc::now().naive_local().to_string(),
-                        val: msg,
-                    };
-                    println!("sending nr {}", i);
-                    yield Ok(response);
-                }
-            });
-
-            // let stream = tokio_stream::wrappers::IntervalStream::new(interval)
-            //     .map(move |_ts| {
-            //         println!("Creating response");
-            //         let msg = format!("response from {}", http_call.host);
-            //         count += 1;
-            //         let response = GsbHttpCallEvent {
-            //             index: count,
-            //             timestamp: Utc::now().naive_local(),
-            //             val: msg,
-            //         };
-            //         if count == 7 {
-            //             return Err(HttpProxyStatusError::RuntimeException("end".to_string()));
-            //         }
-            //         Ok(response)
-            //     })
-            //     .take(5);
-            println!("returning stream");
-            stream
+        gsb::bind_stream(&exe_unit_url, move |mut http_call: GsbHttpCall| {
+            let stream = http_call.execute("http://localhost:7861/".to_string());
+            Box::pin(stream.map(|e| Ok(e)))
         });
     };
     send_state(
