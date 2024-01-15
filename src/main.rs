@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
 use std::io::Write;
-use std::pin::pin;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -14,6 +13,7 @@ use gsb_http_proxy::GsbHttpCall;
 
 use process::Runtime;
 use tokio::select;
+use tokio::sync::{mpsc, mpsc::Receiver, mpsc::Sender};
 use ya_client_model::activity::activity_state::*;
 use ya_client_model::activity::ExeScriptCommand;
 use ya_client_model::activity::{ActivityUsage, CommandResult, ExeScriptCommandResult};
@@ -35,6 +35,8 @@ mod offer_template;
 mod process;
 mod signal;
 
+pub type Signal = &'static str;
+
 async fn send_state<T: process::Runtime>(
     ctx: &ExeUnitContext<T>,
     new_state: ActivityState,
@@ -51,8 +53,9 @@ async fn send_state<T: process::Runtime>(
 async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
-    mut process: ProcessController<T>,
+    process: ProcessController<T>,
     agreement: AgreementDesc,
+    mut signal_receiver: Receiver<Signal>,
 ) -> anyhow::Result<()> {
     let report_service = gsb::service(report_url);
     let start = Utc::now();
@@ -81,12 +84,17 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
             Ok(Err(rpc_message_error)) => log::error!("rpcMessageError : {:?}", rpc_message_error),
             Err(err) => log::error!("other error : {:?}", err),
         }
-        log::debug!("Looping2 ...");
+        log::debug!("Looping ...");
 
-        let sleep = pin!(actix_rt::time::sleep(Duration::from_secs(1)));
-        process = match future::select(sleep, process).await {
-            future::Either::Left((_, p)) => p,
-            future::Either::Right((status, _)) => {
+        tokio::select! {
+            _ = tokio::time::sleep(Duration::from_secs(1)) => {},
+            signal = signal_receiver.recv() => {
+                if let Some(signal) = signal {
+                    log::debug!("Received signal {signal}. Stopping runtime");
+                    process.stop().await;
+                }
+            },
+            status = process.clone() => {
                 let _err = report_service
                     .call(activity::local::SetState {
                         activity_id: activity_id.to_string(),
@@ -100,8 +108,9 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
                     })
                     .await;
                 log::error!("process exit: {:?}", status);
-                anyhow::bail!("Runtime exited")
+                anyhow::bail!("Runtime exited");
             }
+
         }
     }
     Ok(())
@@ -128,16 +137,18 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    let (signal_sender, signal_receiver) = mpsc::channel::<Signal>(1);
+
     select! {
-        res = handle_cli(cli) => res,
-        res = handle_signals() => res,
+        res = handle_cli(cli, signal_receiver) => res,
+        res = handle_signals(signal_sender) => res,
     }
 }
 
-async fn handle_cli(cli: Cli) -> anyhow::Result<()> {
+async fn handle_cli(cli: Cli, signal_receiver: Receiver<Signal>) -> anyhow::Result<()> {
     match cli.runtime.to_lowercase().as_str() {
-        "dummy" => run::<process::dummy::Dummy>(cli).await,
-        "automatic" => run::<process::automatic::Automatic>(cli).await,
+        "dummy" => run::<process::dummy::Dummy>(cli, signal_receiver).await,
+        "automatic" => run::<process::automatic::Automatic>(cli, signal_receiver).await,
         _ => {
             let err = anyhow::format_err!("Unsupported framework {}", cli.runtime);
             log::error!("{}", err);
@@ -146,10 +157,10 @@ async fn handle_cli(cli: Cli) -> anyhow::Result<()> {
     }
 }
 
-async fn handle_signals() -> anyhow::Result<()> {
+async fn handle_signals(signal_receiver: Sender<Signal>) -> anyhow::Result<()> {
     let signal = SignalMonitor::default().recv().await?;
     log::info!("{} received, Shutting down runtime...", signal);
-    Ok(())
+    Ok(signal_receiver.send(signal).await?)
 }
 
 #[derive(Clone)]
@@ -164,7 +175,10 @@ struct ExeUnitContext<T: Runtime + 'static> {
     pub batches: Rc<RefCell<HashMap<String, Vec<ExeScriptCommandResult>>>>,
 }
 
-async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
+async fn run<T: process::Runtime + Clone + Unpin + 'static>(
+    cli: Cli,
+    signal_receiver: Receiver<Signal>,
+) -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
     let (exe_unit_url, report_url, activity_id, args) = match &cli.command {
@@ -213,6 +227,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow:
         activity_id,
         ctx.process_controller.clone(),
         ctx.agreement.clone(),
+        signal_receiver,
     );
 
     #[cfg(target_os = "windows")]
