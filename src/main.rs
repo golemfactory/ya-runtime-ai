@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
@@ -14,6 +12,7 @@ use clap::Parser;
 use futures::prelude::*;
 use gsb_http_proxy::GsbHttpCall;
 
+use process::Runtime;
 use tokio::select;
 use ya_client_model::activity::activity_state::*;
 use ya_client_model::activity::ExeScriptCommand;
@@ -36,7 +35,10 @@ mod offer_template;
 mod process;
 mod signal;
 
-async fn send_state<T>(ctx: &ExeUnitContext<T>, new_state: ActivityState) -> anyhow::Result<()> {
+async fn send_state<T: process::Runtime>(
+    ctx: &ExeUnitContext<T>,
+    new_state: ActivityState,
+) -> anyhow::Result<()> {
     Ok(gsb::service(ctx.report_url.clone())
         .call(activity::local::SetState::new(
             ctx.activity_id.clone(),
@@ -46,7 +48,7 @@ async fn send_state<T>(ctx: &ExeUnitContext<T>, new_state: ActivityState) -> any
         .await??)
 }
 
-async fn activity_loop<T: process::AiFramework + Clone + Unpin + 'static>(
+async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
     mut process: ProcessController<T>,
@@ -151,7 +153,7 @@ async fn handle_signals() -> anyhow::Result<()> {
 }
 
 #[derive(Clone)]
-struct ExeUnitContext<T> {
+struct ExeUnitContext<T: Runtime + 'static> {
     pub activity_id: String,
     pub report_url: String,
 
@@ -162,7 +164,7 @@ struct ExeUnitContext<T> {
     pub batches: Rc<RefCell<HashMap<String, Vec<ExeScriptCommandResult>>>>,
 }
 
-async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
+async fn run<T: process::Runtime + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
     let (exe_unit_url, report_url, activity_id, args) = match &cli.command {
@@ -218,14 +220,9 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
     {
         let batch = ctx.batches.clone();
         let batch_results = batch.clone();
+
         let ctx = ctx.clone();
-
-        log::info!("exe_unit_url: {}", exe_unit_url);
-
-        log::info!("[GSB Bind]: Exec");
-
         gsb::bind(&exe_unit_url, move |exec: activity::Exec| {
-            let ctx = ctx.clone();
             let exec = exec.clone();
             let batch = batch.clone();
             let batch_id = exec.batch_id.clone();
@@ -237,7 +234,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                     .borrow_mut()
                     .insert(exec.batch_id.clone(), vec![]);
             }
-
+            let ctx = ctx.clone();
             let script_future = async move {
                 let mut result = Vec::new();
                 for exe in &exec.exe_script {

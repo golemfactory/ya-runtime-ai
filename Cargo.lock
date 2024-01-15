@@ -1280,6 +1280,7 @@ dependencies = [
 [[package]]
 name = "gsb-http-proxy"
 version = "0.1.0"
+source = "git+https://github.com/golemfactory/yagna.git?rev=04bcd84614f9085033d1c09c3f7fc2359dc60296#04bcd84614f9085033d1c09c3f7fc2359dc60296"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -3596,6 +3597,7 @@ dependencies = [
  "actix-rt",
  "anyhow",
  "async-stream",
+ "async-trait",
  "bytes 1.5.0",
  "chrono",
  "clap 4.4.16",
