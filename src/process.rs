@@ -1,6 +1,5 @@
 use anyhow::Context;
 use async_trait::async_trait;
-use clap::Parser;
 use std::cell::RefCell;
 use std::env::current_exe;
 use std::future::Future;
@@ -21,26 +20,11 @@ pub struct Usage {
 
 #[async_trait]
 pub trait Runtime: Sized {
-    fn parse_args(args: &[String]) -> anyhow::Result<RuntimeArgs>;
-
-    fn start(args: &RuntimeArgs) -> anyhow::Result<Self>;
+    fn start(mode: Option<PathBuf>) -> anyhow::Result<Self>;
 
     async fn stop(&mut self) -> anyhow::Result<()>;
 
     async fn wait(&mut self) -> std::io::Result<ExitStatus>;
-}
-
-#[derive(Parser)]
-#[cfg_attr(test, derive(Debug, Eq, PartialEq))]
-pub struct RuntimeArgs {
-    #[arg(long)]
-    pub model: String,
-}
-
-impl RuntimeArgs {
-    pub fn new(cmd: &String, args: &[String]) -> anyhow::Result<Self> {
-        Ok(Self::try_parse_from(std::iter::once(cmd).chain(args))?)
-    }
 }
 
 #[derive(Clone)]
@@ -90,8 +74,8 @@ impl<T: Runtime + Clone + 'static> ProcessController<T> {
         }
     }
 
-    pub async fn start(&self, args: &RuntimeArgs) -> anyhow::Result<()> {
-        let child = T::start(args)?;
+    pub async fn start(&self, model: Option<PathBuf>) -> anyhow::Result<()> {
+        let child = T::start(model)?;
 
         self.inner
             .replace(ProcessControllerInner::Working { child });

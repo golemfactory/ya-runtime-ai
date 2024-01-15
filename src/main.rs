@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
 use std::io::Write;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -173,6 +174,8 @@ struct ExeUnitContext<T: Runtime + 'static> {
     pub process_controller: ProcessController<T>,
 
     pub batches: Rc<RefCell<HashMap<String, Vec<ExeScriptCommandResult>>>>,
+
+    pub model_path: Option<PathBuf>,
 }
 
 async fn run<T: process::Runtime + Clone + Unpin + 'static>(
@@ -220,6 +223,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
         .start(),
         process_controller: process::ProcessController::<T>::new(),
         batches: Rc::new(RefCell::new(Default::default())),
+        model_path: None,
     };
 
     let activity_pinger = activity_loop(
@@ -249,7 +253,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                     .borrow_mut()
                     .insert(exec.batch_id.clone(), vec![]);
             }
-            let ctx = ctx.clone();
+            let mut ctx = ctx.clone();
             let script_future = async move {
                 let mut result = Vec::new();
                 for exe in &exec.exe_script {
@@ -270,7 +274,8 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                                 ctx.agreement.model
                             );
 
-                            ctx.transfers
+                            ctx.model_path = ctx
+                                .transfers
                                 .send(DeployImage {
                                     task_package: Some(ctx.agreement.model.clone()),
                                 })
@@ -298,11 +303,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             });
                         }
                         ExeScriptCommand::Start { args, .. } => {
-                            log::debug!("Raw Start cmd args: {args:?}");
-                            let args = T::parse_args(args).map_err(|e| {
-                                RpcMessageError::Activity(format!("invalid args: {}", e))
-                            })?;
-                            log::debug!("Start cmd model: {}", args.model);
+                            log::debug!("Raw Start cmd args: {args:?} [ignored]");
 
                             send_state(
                                 &ctx,
@@ -312,7 +313,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             .map_err(|e| RpcMessageError::Service(e.to_string()))?;
 
                             ctx.process_controller
-                                .start(&args)
+                                .start(ctx.model_path.clone())
                                 .await
                                 .map_err(|e| RpcMessageError::Activity(e.to_string()))?;
                             log::debug!("Started process");

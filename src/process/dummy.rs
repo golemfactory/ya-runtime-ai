@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 use std::sync::Arc;
 
@@ -6,7 +7,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 
-use super::{Runtime, RuntimeArgs};
+use super::Runtime;
 
 #[derive(Clone)]
 pub struct Dummy {
@@ -19,21 +20,17 @@ fn dummy_filename() -> String {
 
 #[async_trait]
 impl Runtime for Dummy {
-    fn parse_args(args: &[String]) -> anyhow::Result<RuntimeArgs> {
-        let dummy_filename = dummy_filename();
-        RuntimeArgs::new(&dummy_filename, args)
-    }
-
-    fn start(args: &super::RuntimeArgs) -> anyhow::Result<Dummy> {
+    fn start(model: Option<PathBuf>) -> anyhow::Result<Dummy> {
         let dummy_filename = dummy_filename();
         let exe = super::find_exe(dummy_filename)?;
         let mut cmd = Command::new(&exe);
         let work_dir = exe.parent().unwrap();
+        if let Some(model) = model {
+            cmd.args(["--model", &model.to_string_lossy()]);
+        }
         cmd.stdout(Stdio::piped())
             .stdin(Stdio::null())
-            .current_dir(work_dir)
-            .arg("--model")
-            .arg(&args.model);
+            .current_dir(work_dir);
         let mut child = cmd.kill_on_drop(true).spawn()?;
 
         let stdout = child.stdout.take();
