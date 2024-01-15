@@ -60,6 +60,7 @@ impl Runtime for Automatic {
     }
 
     async fn stop(&mut self) -> anyhow::Result<()> {
+        log::info!("Stopping automatic server");
         let client = reqwest::Client::new();
         client
             .post(format!("{_API_HOST}/{_API_KILL_PATH}"))

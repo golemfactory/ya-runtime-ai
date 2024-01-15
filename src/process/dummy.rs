@@ -61,6 +61,7 @@ impl Runtime for Dummy {
     }
 
     async fn stop(&mut self) -> anyhow::Result<()> {
+        log::info!("Stopping runtime");
         Ok(())
     }
 
