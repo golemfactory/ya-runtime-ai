@@ -37,7 +37,7 @@ regex = "1"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 async-stream = "0.3.5"
 #gsb-http-proxy = { path = "../yagna/exe-unit/components/http-proxy" }
-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "09d4f43ef6ccc2865b3ffd00a6c3a62a33294940" }
+gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "6e07db56ac05e98fcc5ac355e054bd383d1173ba" }
 http = "0.2.11"
 bytes = "1.5.0"
 
