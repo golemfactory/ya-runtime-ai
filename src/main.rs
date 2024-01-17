@@ -1,10 +1,8 @@
-#![allow(dead_code)]
-
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
 use std::io::Write;
-use std::pin::pin;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -12,7 +10,11 @@ use actix::prelude::*;
 use chrono::Utc;
 use clap::Parser;
 use futures::prelude::*;
+use gsb_http_proxy::GsbHttpCall;
 
+use process::Runtime;
+use tokio::select;
+use tokio::sync::{mpsc, mpsc::Receiver, mpsc::Sender};
 use ya_client_model::activity::activity_state::*;
 use ya_client_model::activity::ExeScriptCommand;
 use ya_client_model::activity::{ActivityUsage, CommandResult, ExeScriptCommandResult};
@@ -25,14 +27,21 @@ use crate::agreement::AgreementDesc;
 use crate::cli::*;
 use crate::logger::*;
 use crate::process::ProcessController;
+use crate::signal::SignalMonitor;
 
 mod agreement;
 mod cli;
 mod logger;
 mod offer_template;
 mod process;
+mod signal;
 
-async fn send_state<T>(ctx: &ExeUnitContext<T>, new_state: ActivityState) -> anyhow::Result<()> {
+pub type Signal = &'static str;
+
+async fn send_state<T: process::Runtime>(
+    ctx: &ExeUnitContext<T>,
+    new_state: ActivityState,
+) -> anyhow::Result<()> {
     Ok(gsb::service(ctx.report_url.clone())
         .call(activity::local::SetState::new(
             ctx.activity_id.clone(),
@@ -42,11 +51,12 @@ async fn send_state<T>(ctx: &ExeUnitContext<T>, new_state: ActivityState) -> any
         .await??)
 }
 
-async fn activity_loop<T: process::AiFramework + Clone + Unpin + 'static>(
+async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
-    mut process: ProcessController<T>,
+    process: ProcessController<T>,
     agreement: AgreementDesc,
+    mut signal_receiver: Receiver<Signal>,
 ) -> anyhow::Result<()> {
     let report_service = gsb::service(report_url);
     let start = Utc::now();
@@ -75,12 +85,17 @@ async fn activity_loop<T: process::AiFramework + Clone + Unpin + 'static>(
             Ok(Err(rpc_message_error)) => log::error!("rpcMessageError : {:?}", rpc_message_error),
             Err(err) => log::error!("other error : {:?}", err),
         }
-        log::debug!("Looping2 ...");
+        log::debug!("Looping ...");
 
-        let sleep = pin!(actix_rt::time::sleep(Duration::from_secs(1)));
-        process = match future::select(sleep, process).await {
-            future::Either::Left((_, p)) => p,
-            future::Either::Right((status, _)) => {
+        tokio::select! {
+            _ = tokio::time::sleep(Duration::from_secs(1)) => {},
+            signal = signal_receiver.recv() => {
+                if let Some(signal) = signal {
+                    log::debug!("Received signal {signal}. Stopping runtime");
+                    process.stop().await;
+                }
+            },
+            status = process.clone() => {
                 let _err = report_service
                     .call(activity::local::SetState {
                         activity_id: activity_id.to_string(),
@@ -94,8 +109,9 @@ async fn activity_loop<T: process::AiFramework + Clone + Unpin + 'static>(
                     })
                     .await;
                 log::error!("process exit: {:?}", status);
-                anyhow::bail!("Runtime exited")
+                anyhow::bail!("Runtime exited");
             }
+
         }
     }
     Ok(())
@@ -122,8 +138,18 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    let (signal_sender, signal_receiver) = mpsc::channel::<Signal>(1);
+
+    select! {
+        res = handle_cli(cli, signal_receiver) => res,
+        res = handle_signals(signal_sender) => res,
+    }
+}
+
+async fn handle_cli(cli: Cli, signal_receiver: Receiver<Signal>) -> anyhow::Result<()> {
     match cli.runtime.to_lowercase().as_str() {
-        "dummy" => run::<process::dummy::Dummy>(cli).await,
+        "dummy" => run::<process::dummy::Dummy>(cli, signal_receiver).await,
+        "automatic" => run::<process::automatic::Automatic>(cli, signal_receiver).await,
         _ => {
             let err = anyhow::format_err!("Unsupported framework {}", cli.runtime);
             log::error!("{}", err);
@@ -132,8 +158,14 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
+async fn handle_signals(signal_receiver: Sender<Signal>) -> anyhow::Result<()> {
+    let signal = SignalMonitor::default().recv().await?;
+    log::info!("{} received, Shutting down runtime...", signal);
+    Ok(signal_receiver.send(signal).await?)
+}
+
 #[derive(Clone)]
-struct ExeUnitContext<T> {
+struct ExeUnitContext<T: Runtime + 'static> {
     pub activity_id: String,
     pub report_url: String,
 
@@ -142,9 +174,14 @@ struct ExeUnitContext<T> {
     pub process_controller: ProcessController<T>,
 
     pub batches: Rc<RefCell<HashMap<String, Vec<ExeScriptCommandResult>>>>,
+
+    pub model_path: Option<PathBuf>,
 }
 
-async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> anyhow::Result<()> {
+async fn run<T: process::Runtime + Clone + Unpin + 'static>(
+    cli: Cli,
+    signal_receiver: Receiver<Signal>,
+) -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
     let (exe_unit_url, report_url, activity_id, args) = match &cli.command {
@@ -170,11 +207,8 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
         }
     };
 
-    log::info!("{:?}", args);
-    log::info!("CLI args: {:?}", &cli);
-    log::info!("Binding to GSB ...");
-
     let agreement_path = args.agreement.clone();
+
     let agreement = AgreementDesc::load(agreement_path)?;
 
     let ctx = ExeUnitContext {
@@ -189,6 +223,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
         .start(),
         process_controller: process::ProcessController::<T>::new(),
         batches: Rc::new(RefCell::new(Default::default())),
+        model_path: None,
     };
 
     let activity_pinger = activity_loop(
@@ -196,17 +231,17 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
         activity_id,
         ctx.process_controller.clone(),
         ctx.agreement.clone(),
+        signal_receiver,
     );
+
     #[cfg(target_os = "windows")]
     let _job = process::win::JobObject::new()?;
-
     {
         let batch = ctx.batches.clone();
         let batch_results = batch.clone();
-        let ctx = ctx.clone();
 
+        let ctx = ctx.clone();
         gsb::bind(&exe_unit_url, move |exec: activity::Exec| {
-            let ctx = ctx.clone();
             let exec = exec.clone();
             let batch = batch.clone();
             let batch_id = exec.batch_id.clone();
@@ -218,7 +253,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                     .borrow_mut()
                     .insert(exec.batch_id.clone(), vec![]);
             }
-
+            let mut ctx = ctx.clone();
             let script_future = async move {
                 let mut result = Vec::new();
                 for exe in &exec.exe_script {
@@ -239,7 +274,8 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                                 ctx.agreement.model
                             );
 
-                            ctx.transfers
+                            ctx.model_path = ctx
+                                .transfers
                                 .send(DeployImage {
                                     task_package: Some(ctx.agreement.model.clone()),
                                 })
@@ -267,11 +303,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                             });
                         }
                         ExeScriptCommand::Start { args, .. } => {
-                            log::debug!("Raw Start cmd args: {args:?}");
-                            let args = T::parse_args(args).map_err(|e| {
-                                RpcMessageError::Activity(format!("invalid args: {}", e))
-                            })?;
-                            log::debug!("Start cmd model: {}", args.model);
+                            log::debug!("Raw Start cmd args: {args:?} [ignored]");
 
                             send_state(
                                 &ctx,
@@ -281,7 +313,7 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                             .map_err(|e| RpcMessageError::Service(e.to_string()))?;
 
                             ctx.process_controller
-                                .start(&args)
+                                .start(ctx.model_path.clone())
                                 .await
                                 .map_err(|e| RpcMessageError::Activity(e.to_string()))?;
                             log::debug!("Started process");
@@ -372,6 +404,11 @@ async fn run<T: process::AiFramework + Clone + Unpin + 'static>(cli: Cli) -> any
                     exec.batch_id
                 )))
             }
+        });
+
+        gsb::bind_stream(&exe_unit_url, move |mut http_call: GsbHttpCall| {
+            let stream = http_call.execute("http://localhost:7861/".to_string());
+            Box::pin(stream.map(Ok))
         });
     };
     send_state(

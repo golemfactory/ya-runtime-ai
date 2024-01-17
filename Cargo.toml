@@ -1,6 +1,6 @@
 [package]
 name = "ya-runtime-ai"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,15 +11,16 @@ members = [
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "6fd7b003e3d0947284d47d99b2944d293d329c53", features = ["activity", "appkey"] }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "04bcd84614f9085033d1c09c3f7fc2359dc60296", features = ["activity", "appkey"] }
 ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "6fd7b003e3d0947284d47d99b2944d293d329c53" }
-ya-service-bus = "0.6.1"
-ya-client-model = "0.5.0"
+ya-service-bus = "0.6.3"
+ya-client-model = "0.6.0"
 ya-agreement-utils = "0.5"
 ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "6fd7b003e3d0947284d47d99b2944d293d329c53" }
 
 actix = "0.13"
 actix-rt = "2"
+async-trait = "0.1.77"
 log = "0.4"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -29,11 +30,16 @@ anyhow = "1.0"
 env_logger = "0.10"
 yansi = "0.5"
 chrono = "0.4"
-tokio = { version = "1.32", features = ["macros"] }
+tokio = { version = "1.32", features = ["macros", "signal"] }
 futures = "0.3"
 flexi_logger = { version = "0.27", features = ["colors"] }
 regex = "1"
-reqwest = "0.11"
+reqwest = { version = "0.11", features = ["blocking", "json"] }
+async-stream = "0.3.5"
+#gsb-http-proxy = { path = "../yagna/exe-unit/components/http-proxy" }
+gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "04bcd84614f9085033d1c09c3f7fc2359dc60296" }
+http = "0.2.11"
+bytes = "1.5.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["jobapi2", "processthreadsapi", "handleapi"] }
