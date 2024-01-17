@@ -1,5 +1,4 @@
 use std::{
-    ffi::OsStr,
     path::PathBuf,
     process::{ExitStatus, Stdio},
     sync::Arc,
@@ -20,15 +19,21 @@ pub struct Automatic {
     child: Arc<Mutex<Child>>,
 }
 
-static _STARTUP_SCRIPT: &str = "automatic/run.bat";
+//TODO parameterize it
+
+static _STARTUP_SCRIPT: &str = "sd.webui_noxformers/run.bat";
 
 static _API_HOST: &str = "http://localhost:7861";
 
-static _API_KILL_PATH: &str = "sdapi/v1/server-stop";
+static _API_KILL_PATH: &str = "sdapi/v1/server-kill";
 
 static _MODEL_ARG: &str = "--ckpt";
 
-static _MODEL_DIR_ARG: &str = "--ckpt-dir";
+static _SKIP_TEST_ARGS: [&str; 3] = [
+    "--skip-torch-cuda-test",
+    "--skip-python-version-check",
+    "--skip-version-check",
+];
 
 #[async_trait]
 impl Runtime for Automatic {
@@ -38,12 +43,12 @@ impl Runtime for Automatic {
 
         let mut cmd = Command::new(&exe);
 
-        if let Some(model) = model {
-            let ckpt_dir = model.parent().and_then(ckpt_dir);
-            let model_file = model.file_name().and_then(OsStr::to_str);
-            if let (Some(ckpt_dir), Some(model_file)) = (ckpt_dir, model_file) {
-                cmd.args([_MODEL_DIR_ARG, &ckpt_dir, _MODEL_ARG, model_file]);
-            }
+        cmd.args(_SKIP_TEST_ARGS);
+
+        if let Some(model) = model.and_then(format_path) {
+            cmd.args([_MODEL_ARG, &model]);
+        } else {
+            log::warn!("No model arg");
         }
 
         let work_dir = exe.parent().unwrap();
@@ -90,12 +95,12 @@ impl Runtime for Automatic {
 
 // Automatic needs following ckpt-dir format: C:\\some/path
 #[cfg(target_family = "windows")]
-fn ckpt_dir(ckpt_dir: &std::path::Path) -> Option<String> {
-    use std::{collections::VecDeque, path::Path};
+fn format_path(path: std::path::PathBuf) -> Option<String> {
+    use std::{collections::VecDeque, ffi::OsStr, path::Path};
 
-    if ckpt_dir.has_root() {
+    if path.has_root() {
         let mut path_parts = VecDeque::new();
-        let mut dir = Some(ckpt_dir);
+        let mut dir = Some(path.as_path());
         while let Some(name) = dir.and_then(Path::file_name).and_then(OsStr::to_str) {
             path_parts.push_front(name);
             dir = dir.and_then(Path::parent);
@@ -105,13 +110,13 @@ fn ckpt_dir(ckpt_dir: &std::path::Path) -> Option<String> {
             return Some(format!("{disk}\\{relative_path}"));
         }
     }
-    log::error!("Unable to build ckpt_dir in correct format from path: {ckpt_dir:?}");
+    log::error!("Unable to build ckpt_dir in correct format from path: {path:?}");
     None
 }
 
 #[cfg(target_family = "unix")]
-fn ckpt_dir(ckpt_dir: &std::path::Path) -> Option<String> {
-    ckpt_dir.to_str().map(str::to_string)
+fn format_path(path: std::path::PathBuf) -> Option<String> {
+    path.to_str().map(str::to_string)
 }
 
 #[cfg(target_family = "windows")]
@@ -123,7 +128,10 @@ mod tests {
 
     #[test]
     fn ckpt_dir_test() {
-        let path = Path::new("C:\\my\\model\\dir");
-        assert_eq!(ckpt_dir(path), Some("C:\\\\my/model/dir".to_string()));
+        let path = PathBuf::from(Path::new("C:\\my\\model\\model.ckpt"));
+        assert_eq!(
+            format_path(path),
+            Some("C:\\\\my/model/model.ckpt".to_string())
+        );
     }
 }
