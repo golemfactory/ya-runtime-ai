@@ -408,7 +408,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
 
         gsb::bind_stream(&exe_unit_url, move |mut http_call: GsbHttpCall| {
             let stream = http_call.execute("http://localhost:7861/".to_string());
-            Box::pin(stream.map(|e| Ok(e)))
+            Box::pin(stream.map(Ok))
         });
     };
     send_state(
