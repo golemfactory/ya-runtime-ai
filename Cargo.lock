@@ -3545,23 +3545,6 @@ dependencies = [
 [[package]]
 name = "ya-core-model"
 version = "0.9.0"
-dependencies = [
- "chrono",
- "derive_more",
- "log",
- "serde",
- "serde_bytes",
- "structopt",
- "strum 0.24.1",
- "strum_macros 0.24.3",
- "thiserror",
- "ya-client-model 0.6.0",
- "ya-service-bus",
-]
-
-[[package]]
-name = "ya-core-model"
-version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dddc3bccc5be20eb58baa2f1bc61d62221b28e4d307c5c4bdf363e3c3149ddaa"
 dependencies = [
@@ -3575,6 +3558,24 @@ dependencies = [
  "strum_macros 0.24.3",
  "thiserror",
  "ya-client-model 0.5.0",
+ "ya-service-bus",
+]
+
+[[package]]
+name = "ya-core-model"
+version = "0.9.0"
+source = "git+https://github.com/golemfactory/yagna.git?rev=04bcd84614f9085033d1c09c3f7fc2359dc60296#04bcd84614f9085033d1c09c3f7fc2359dc60296"
+dependencies = [
+ "chrono",
+ "derive_more",
+ "log",
+ "serde",
+ "serde_bytes",
+ "structopt",
+ "strum 0.24.1",
+ "strum_macros 0.24.3",
+ "thiserror",
+ "ya-client-model 0.6.0",
  "ya-service-bus",
 ]
 
@@ -3616,7 +3617,7 @@ dependencies = [
  "winapi",
  "ya-agreement-utils",
  "ya-client-model 0.6.0",
- "ya-core-model 0.9.0",
+ "ya-core-model 0.9.0 (git+https://github.com/golemfactory/yagna.git?rev=04bcd84614f9085033d1c09c3f7fc2359dc60296)",
  "ya-runtime-api",
  "ya-service-bus",
  "ya-transfer",

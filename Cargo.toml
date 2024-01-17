@@ -11,8 +11,7 @@ members = [
 ]
 
 [dependencies]
-#ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "6fd7b003e3d0947284d47d99b2944d293d329c53", features = ["activity", "appkey"] }
-ya-core-model = { path = "../yagna/core/model", features = ["activity", "appkey"] }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "04bcd84614f9085033d1c09c3f7fc2359dc60296", features = ["activity", "appkey"] }
 ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "6fd7b003e3d0947284d47d99b2944d293d329c53" }
 ya-service-bus = "0.6.3"
 ya-client-model = "0.6.0"
