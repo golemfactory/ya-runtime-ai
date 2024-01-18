@@ -20,7 +20,7 @@ pub struct Usage {
 
 #[async_trait]
 pub trait Runtime: Sized {
-    fn start(mode: Option<PathBuf>) -> anyhow::Result<Self>;
+    async fn start(mode: Option<PathBuf>) -> anyhow::Result<Self>;
 
     async fn stop(&mut self) -> anyhow::Result<()>;
 
@@ -75,7 +75,7 @@ impl<T: Runtime + Clone + 'static> ProcessController<T> {
     }
 
     pub async fn start(&self, model: Option<PathBuf>) -> anyhow::Result<()> {
-        let child = T::start(model)?;
+        let child = T::start(model).await?;
 
         self.inner
             .replace(ProcessControllerInner::Working { child });

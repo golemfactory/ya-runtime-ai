@@ -20,7 +20,7 @@ fn dummy_filename() -> String {
 
 #[async_trait]
 impl Runtime for Dummy {
-    fn start(model: Option<PathBuf>) -> anyhow::Result<Dummy> {
+    async fn start(model: Option<PathBuf>) -> anyhow::Result<Dummy> {
         let dummy_filename = dummy_filename();
         let exe = super::find_exe(dummy_filename)?;
         let mut cmd = Command::new(&exe);

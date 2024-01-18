@@ -5,11 +5,12 @@ use std::{
 };
 
 use async_trait::async_trait;
+
 use tokio::{
     io::AsyncBufReadExt,
     io::BufReader,
     process::{Child, Command},
-    sync::Mutex,
+    sync::{oneshot, Mutex},
 };
 
 use super::Runtime;
@@ -35,9 +36,11 @@ static _SKIP_TEST_ARGS: [&str; 3] = [
     "--skip-version-check",
 ];
 
+static _STARTUP_MSG: &str = "Model loaded in ";
+
 #[async_trait]
 impl Runtime for Automatic {
-    fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
+    async fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
         log::info!("Start cmd");
         let exe = super::find_exe(_STARTUP_SCRIPT)?;
 
@@ -60,6 +63,11 @@ impl Runtime for Automatic {
 
         let stdout = child.stdout.take();
 
+        let (startup_event_sender, startup_event_receiver) = oneshot::channel::<String>();
+        let mut output_handler = OutputHandler::LookingForStartup {
+            startup_event_sender,
+        };
+
         if let Some(stdout) = stdout {
             tokio::spawn(async move {
                 let mut reader = BufReader::new(stdout).lines();
@@ -68,10 +76,18 @@ impl Runtime for Automatic {
                     log::debug!("Error reading line from stdout: {}", e);
                     None
                 }) {
-                    log::debug!("{}", line);
+                    match output_handler.handle(line) {
+                        Ok(new_handler) => output_handler = new_handler,
+                        Err(err) => {
+                            log::error!("Failed to handle process output. Err {err}");
+                            break;
+                        }
+                    }
                 }
             });
         }
+
+        _ = startup_event_receiver.await?;
 
         let child = Arc::new(Mutex::new(child));
         Ok(Self { child })
@@ -110,13 +126,42 @@ fn format_path(path: std::path::PathBuf) -> Option<String> {
             return Some(format!("{disk}\\{relative_path}"));
         }
     }
-    log::error!("Unable to build ckpt_dir in correct format from path: {path:?}");
+    log::error!("Unable to correctly format path: {path:?}");
     None
 }
 
 #[cfg(target_family = "unix")]
 fn format_path(path: std::path::PathBuf) -> Option<String> {
     path.to_str().map(str::to_string)
+}
+
+enum OutputHandler {
+    LookingForStartup {
+        startup_event_sender: oneshot::Sender<String>,
+    },
+    Logging,
+}
+
+impl OutputHandler {
+    fn handle(self, line: String) -> Result<OutputHandler, String> {
+        match self {
+            Self::LookingForStartup {
+                startup_event_sender,
+            } => {
+                if line.starts_with(_STARTUP_MSG) {
+                    startup_event_sender.send(line)?;
+                    return Ok(Self::Logging);
+                }
+                Ok(Self::LookingForStartup {
+                    startup_event_sender,
+                })
+            }
+            Self::Logging => {
+                log::debug!("{}", line);
+                Ok(self)
+            }
+        }
+    }
 }
 
 #[cfg(target_family = "windows")]
