@@ -144,6 +144,7 @@ enum OutputHandler {
 
 impl OutputHandler {
     fn handle(self, line: String) -> Result<OutputHandler, String> {
+        log::debug!("{line}");
         match self {
             Self::LookingForStartup {
                 startup_event_sender,
@@ -157,7 +158,6 @@ impl OutputHandler {
                 })
             }
             Self::Logging => {
-                log::debug!("{}", line);
                 Ok(self)
             }
         }
