@@ -1,17 +1,20 @@
-use std::{
-    path::PathBuf,
-    process::{ExitStatus, Stdio, Command, Child},
-    sync::{Arc, Condvar, Mutex}, io::{BufReader, BufRead},
-};
+use std::{path::PathBuf, process::{ExitStatus, Stdio, ExitCode}, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use async_trait::async_trait;
+use tokio::{
+    io::AsyncBufReadExt,
+    io::BufReader,
+    process::{Child, Command},
+    sync::{oneshot, Mutex}, runtime::{Builder},
+};
+use tokio_stream::{wrappers::LinesStream, StreamExt};
 
 use super::Runtime;
 
 #[derive(Clone)]
 pub struct Automatic {
-    child: Arc<Mutex<Child>>,
+    runtime: Arc<tokio::runtime::Runtime>,
 }
 
 //TODO parameterize it
@@ -34,13 +37,13 @@ static _STARTUP_MSG: &str = "Model loaded in ";
 
 #[async_trait]
 impl Runtime for Automatic {
-    fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
+    async fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
         log::info!("Start cmd");
         let exe = super::find_exe(_STARTUP_SCRIPT)?;
 
         let mut cmd = Command::new(&exe);
         cmd.args(_SKIP_TEST_ARGS);
-        
+
         if let Some(model) = model.and_then(format_path) {
             cmd.args([_MODEL_ARG, &model]);
         } else {
@@ -49,51 +52,71 @@ impl Runtime for Automatic {
 
         let work_dir = exe.parent().unwrap();
         cmd.stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .stdin(Stdio::null())
             .current_dir(work_dir);
 
-        let mut child = cmd.spawn()?;
+        let mut child = cmd.kill_on_drop(true).spawn()?;
 
-        let stdout = child.stdout.take().context("Can listen on Automatic stdout")?;
-        // let stderr = child.stderr.take().context("Can listen on Automatic stdout")?;
+        let (startup_event_sender, startup_event_receiver) = oneshot::channel::<String>();
+        let mut output_handler = OutputHandler::LookingForStartup {
+            startup_event_sender,
+        };
 
-        let event_lock = Arc::new((Mutex::new(false), Condvar::new()));
+        let runtime = Builder::new_multi_thread()
+            .worker_threads(1)
+            .thread_name("proces_output_handler")
+            // .enable_all()
+            .build()
+            .unwrap();
 
-        let mut output_handler = OutputHandler::LookingForStartup { event_lock: event_lock.clone() };
+        runtime.spawn(async move {
+            let mut child = cmd.kill_on_drop(true).spawn()
+                .map_err(|err| { log::error!("Failed to spawn process. Err: {err}"); err})
+                .unwrap();
 
-        std::thread::spawn(move || {
-            let reader = BufReader::new(stdout);
+            let stdout = child
+                .stdout
+                .take()
+                .context("Failed to read Automatic stdout")
+                    .map_err(|err| { log::error!("Failed to get stdout. Err: {err}"); err})
+                    .unwrap();
+            let stderr = child
+                .stderr
+                .take()
+                .context("Failed to read Automatic stderr")
+                .map_err(|err| { log::error!("Failed to get stderr. Err: {err}"); err})
+                .unwrap();
 
-            for line in reader.lines() {
-                match line {
+            let stdout = LinesStream::new(BufReader::new(stdout).lines());
+            let stderr = LinesStream::new(BufReader::new(stderr).lines());
+            let mut out = StreamExt::merge(stdout, stderr);
+
+            while let Some(next_line) = out.next().await {
+                match next_line {
                     Ok(line) => {
                         match output_handler.handle(line) {
-                            Ok(new_handler) => output_handler = new_handler,
+                            Ok(handler) => { output_handler = handler },
                             Err(err) => {
-                                log::error!("Failed to handle process output. Err {err}");
+                                log::error!("Failed to handle process output line. Err {err}");
                                 break;
                             }
                         }
-                    }
+                    },
                     Err(err) => {
-                        log::error!("Failed to read Automatic stdout. Err {err}");
+                        log::error!("Failed to handle process output. Err {err}");
                         break;
                     }
                 }
             }
         });
 
-        let (event_lock, cvar) = &*event_lock;
-        let mut started = event_lock.lock().unwrap();
-        while !*started {
-            started = cvar.wait(started).unwrap();
-        }
+        log::info!("Waiting for automatic startup.");
+        _ = startup_event_receiver.await?;
+        log::info!("Automatic has started.");
 
-        log::debug!("Automatic has started");
-
-        let child = Arc::new(Mutex::new(child));
-        Ok(Self { child })
+        let runtime = Arc::new(runtime);
+        Ok(Self { runtime })
     }
 
     async fn stop(&mut self) -> anyhow::Result<()> {
@@ -107,8 +130,10 @@ impl Runtime for Automatic {
     }
 
     async fn wait(&mut self) -> std::io::Result<ExitStatus> {
-        let mut child = self.child.lock().unwrap();
-        child.wait()
+        // let mut child = self.
+        // self.runtime.wait().await
+        tokio::time::sleep(Duration::from_secs(10000)).await;
+        std::io::Result::Ok(Default::default())
     }
 }
 
@@ -140,7 +165,7 @@ fn format_path(path: std::path::PathBuf) -> Option<String> {
 
 enum OutputHandler {
     LookingForStartup {
-        event_lock: Arc<(Mutex<bool>, Condvar)>,
+        startup_event_sender: oneshot::Sender<String>,
     },
     Logging,
 }
@@ -150,21 +175,17 @@ impl OutputHandler {
         log::debug!("> {line}");
         match self {
             Self::LookingForStartup {
-                event_lock,
+                startup_event_sender,
             } => {
                 if line.starts_with(_STARTUP_MSG) {
-                    let (lock, cvar) = &*event_lock;
-                    let mut started = lock.lock().unwrap();
-                    *started = true;
-                    // We notify the condvar that the value has changed.
-                    cvar.notify_one();
+                    startup_event_sender.send(line)?;
                     return Ok(Self::Logging);
                 }
-                Ok(Self::LookingForStartup { event_lock })
+                Ok(Self::LookingForStartup {
+                    startup_event_sender,
+                })
             }
-            Self::Logging => {
-                Ok(self)
-            }
+            Self::Logging => Ok(self),
         }
     }
 }
