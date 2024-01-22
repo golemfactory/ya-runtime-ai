@@ -1,11 +1,14 @@
-use std::{
-    path::PathBuf,
-    process::{ExitStatus, Stdio, Command, Child},
-    sync::{Arc, Condvar, Mutex}, io::{BufReader, BufRead},
-};
+use std::{path::PathBuf, process::{ExitStatus, Stdio}, sync::Arc, collections::HashMap};
 
 use anyhow::Context;
 use async_trait::async_trait;
+use tokio::{
+    io::AsyncBufReadExt,
+    io::BufReader,
+    process::{Child, Command},
+    sync::{oneshot, Mutex},
+};
+use tokio_stream::{wrappers::LinesStream, StreamExt};
 
 use super::Runtime;
 
@@ -16,7 +19,7 @@ pub struct Automatic {
 
 //TODO parameterize it
 
-static _STARTUP_SCRIPT: &str = "sd.webui_noxformers/run.bat";
+static _BASE_DIR: &str = "sd.webui_noxformers";
 
 static _API_HOST: &str = "http://localhost:7861";
 
@@ -24,73 +27,96 @@ static _API_KILL_PATH: &str = "sdapi/v1/server-kill";
 
 static _MODEL_ARG: &str = "--ckpt";
 
-static _SKIP_TEST_ARGS: [&str; 3] = [
-    "--skip-torch-cuda-test",
-    "--skip-python-version-check",
-    "--skip-version-check",
-];
+static _DEFAULT_ARGS: &str = 
+    "--no-download-sd-model \
+    --do-not-download-clip \
+    --skip-prepare-environment \
+    --skip-install \
+    --api \
+    --api-log \
+    --nowebui \
+    --api-server-stop \
+    --log-startup \
+    --skip-torch-cuda-test \
+    --skip-python-version-check \
+    --skip-version-check";
 
 static _STARTUP_MSG: &str = "Model loaded in ";
 
 #[async_trait]
 impl Runtime for Automatic {
-    fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
+    async fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> 
+    {
         log::info!("Start cmd");
-        let exe = super::find_exe(_STARTUP_SCRIPT)?;
+        let base_dir = super::find_exe(_BASE_DIR)?;
+        let webui_dir = base_dir.join("webui");
+        let system_dir = base_dir.join("system").to_string_lossy().to_string();
 
-        let mut cmd = Command::new(&exe);
-        cmd.args(_SKIP_TEST_ARGS);
-        
+        let path_env = std::env::var("PATH").context("Can get PATH env var")?;
+        let env = HashMap::from([
+            ("PATH",        format!("{system_dir}\\git\\bin;{system_dir}\\python;{system_dir}\\python\\Scripts;{path_env}")),
+            ("PY_LIBS",     format!("{system_dir}\\python\\Scripts\\Lib;{system_dir}\\python\\Scripts\\Lib\\site-packages")),
+            ("PY_PIP",      format!("{system_dir}\\python\\Scripts")),
+            ("PIP_INSTALLER_LOCATION",  format!("{system_dir}\\python\\get-pip.py")),
+            // ("PYTHON",                  "python".into()),
+            ("GIT",                     "".into()),
+            ("TRANSFORMERS_CACHE",      format!("{system_dir}\\transformers-cache")),
+            ("SD_WEBUI_RESTART",        "tmp/restart".into()),
+            ("ERROR_REPORTING",         "FALSE".into()),
+            ("COMMANDLINE_ARGS",        _DEFAULT_ARGS.into())
+        ]);
+
+        let mut cmd = Command::new("python".to_string());
+        cmd.arg("launch.py")
+            .current_dir(webui_dir)
+            .envs(env)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::null());
+
         if let Some(model) = model.and_then(format_path) {
             cmd.args([_MODEL_ARG, &model]);
         } else {
             log::warn!("No model arg");
         }
 
-        let work_dir = exe.parent().unwrap();
-        cmd.stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .stdin(Stdio::null())
-            .current_dir(work_dir);
+        let mut child = cmd.kill_on_drop(true).spawn()?;
 
-        let mut child = cmd.spawn()?;
+        let stdout = child
+            .stdout
+            .take()
+            .context("Failed to read Automatic stdout")?;
+        let stderr = child
+            .stderr
+            .take()
+            .context("Failed to read Automatic stderr")?;
 
-        let stdout = child.stdout.take().context("Can listen on Automatic stdout")?;
-        // let stderr = child.stderr.take().context("Can listen on Automatic stdout")?;
+        let stdout = LinesStream::new(BufReader::with_capacity(_STARTUP_MSG.len(), stdout).lines());
+        let stderr = LinesStream::new(BufReader::new(stderr).lines());
+        let mut out = StreamExt::merge(stdout, stderr);
 
-        let event_lock = Arc::new((Mutex::new(false), Condvar::new()));
+        //TODO add timeout
+        while let Some(next_line) = out.next().await {
+            let line = next_line?;
+            log::debug!("{line}");
+            if line.starts_with(_STARTUP_MSG) {
+                break;
+            }
+        }
 
-        let mut output_handler = OutputHandler::LookingForStartup { event_lock: event_lock.clone() };
+        log::debug!("Automatic has started");
 
-        std::thread::spawn(move || {
-            let reader = BufReader::new(stdout);
-
-            for line in reader.lines() {
+        tokio::task::spawn(async move {
+            while let Some(line) = out.next().await {
                 match line {
-                    Ok(line) => {
-                        match output_handler.handle(line) {
-                            Ok(new_handler) => output_handler = new_handler,
-                            Err(err) => {
-                                log::error!("Failed to handle process output. Err {err}");
-                                break;
-                            }
-                        }
-                    }
+                    Ok(line) => log::debug!("{line}"),
                     Err(err) => {
-                        log::error!("Failed to read Automatic stdout. Err {err}");
+                        log::error!("Failed to read Automatic output. Err {err}");
                         break;
                     }
                 }
             }
         });
-
-        let (event_lock, cvar) = &*event_lock;
-        let mut started = event_lock.lock().unwrap();
-        while !*started {
-            started = cvar.wait(started).unwrap();
-        }
-
-        log::debug!("Automatic has started");
 
         let child = Arc::new(Mutex::new(child));
         Ok(Self { child })
@@ -107,8 +133,8 @@ impl Runtime for Automatic {
     }
 
     async fn wait(&mut self) -> std::io::Result<ExitStatus> {
-        let mut child = self.child.lock().unwrap();
-        child.wait()
+        let mut child = self.child.lock().await;
+        child.wait().await
     }
 }
 
@@ -140,31 +166,27 @@ fn format_path(path: std::path::PathBuf) -> Option<String> {
 
 enum OutputHandler {
     LookingForStartup {
-        event_lock: Arc<(Mutex<bool>, Condvar)>,
+        startup_event_sender: oneshot::Sender<String>,
     },
     Logging,
 }
 
 impl OutputHandler {
     fn handle(self, line: String) -> Result<OutputHandler, String> {
-        log::debug!("> {line}");
+        log::debug!("{line}");
         match self {
             Self::LookingForStartup {
-                event_lock,
+                startup_event_sender,
             } => {
                 if line.starts_with(_STARTUP_MSG) {
-                    let (lock, cvar) = &*event_lock;
-                    let mut started = lock.lock().unwrap();
-                    *started = true;
-                    // We notify the condvar that the value has changed.
-                    cvar.notify_one();
+                    startup_event_sender.send(line)?;
                     return Ok(Self::Logging);
                 }
-                Ok(Self::LookingForStartup { event_lock })
+                Ok(Self::LookingForStartup {
+                    startup_event_sender,
+                })
             }
-            Self::Logging => {
-                Ok(self)
-            }
+            Self::Logging => Ok(self),
         }
     }
 }
