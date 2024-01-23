@@ -1,3 +1,9 @@
+mod monitor;
+
+use super::Runtime;
+use crate::process::automatic::monitor::OutputMonitor;
+use anyhow::Context;
+use async_trait::async_trait;
 use std::pin::Pin;
 use std::time::Duration;
 use std::{
@@ -5,27 +11,20 @@ use std::{
     process::{ExitStatus, Stdio},
     sync::Arc,
 };
-
-use anyhow::Context;
-use async_trait::async_trait;
-use reqwest::Client;
-use tokio::process::ChildStdout;
-use tokio::sync::Notify;
-use tokio::task::JoinHandle;
 use tokio::{
     io::AsyncBufReadExt,
     io::BufReader,
     process::{Child, Command},
     sync::Mutex,
+    time::timeout,
 };
 use tokio_stream::{wrappers::LinesStream, StreamExt};
-
-use super::Runtime;
 
 #[derive(Clone)]
 pub struct Automatic {
     child: Arc<Mutex<Child>>,
-    output_monitor: OutputMonitor,
+    #[allow(dead_code)]
+    output_monitor: monitor::OutputMonitor,
 }
 
 //TODO parameterize it
@@ -38,8 +37,6 @@ static _API_HOST: &str = "localhost";
 
 static _API_KILL_PATH: &str = "sdapi/v1/server-kill";
 
-static _API_PING_DELAY: Duration = Duration::from_millis(1_000);
-
 static _MODEL_ARG: &str = "--ckpt";
 
 static _SKIP_TEST_ARGS: [&str; 3] = [
@@ -48,7 +45,7 @@ static _SKIP_TEST_ARGS: [&str; 3] = [
     "--skip-version-check",
 ];
 
-static _STARTUP_MSG: &str = "Model loaded in ";
+const _STARTUP_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[async_trait]
 impl Runtime for Automatic {
@@ -65,10 +62,13 @@ impl Runtime for Automatic {
         let output_monitor = OutputMonitor::start(output);
 
         log::info!("Waiting for Automatic startup");
-        output_monitor.wait_for_startup().await;
+        timeout(_STARTUP_TIMEOUT, output_monitor.wait_for_startup())
+            .await
+            .context("Waiting for Automatic startup timeout.")?;
 
         log::info!("Automatic has started");
         let child = Arc::new(Mutex::new(child));
+
         Ok(Self {
             child,
             output_monitor,
@@ -153,99 +153,6 @@ fn output_lines(child: &mut Child) -> anyhow::Result<OutputLines> {
     let stdout = LinesStream::new(BufReader::new(stdout).lines());
     let stderr = LinesStream::new(BufReader::new(stderr).lines());
     Ok(futures::StreamExt::boxed(stdout.merge(stderr)))
-}
-
-#[derive(Clone)]
-struct OutputMonitor {
-    has_started: Arc<Notify>,
-    has_stopped: Arc<Notify>,
-    output_task: Arc<JoinHandle<()>>,
-    pinger_task: Arc<JoinHandle<()>>,
-}
-
-impl OutputMonitor {
-    pub fn start(lines: OutputLines) -> Self {
-        let has_started: Arc<Notify> = Default::default();
-        let has_stopped: Arc<Notify> = Default::default();
-        let output_handler = OutputHandler::LookingForStartup {
-            notifier: has_started.clone(),
-        };
-        let output_task = Arc::new(Self::spawn_output_monitoring(lines, output_handler));
-        let pinger_task = Arc::new(Self::spawn_api_pinger());
-        Self {
-            has_started,
-            has_stopped,
-            output_task,
-            pinger_task,
-        }
-    }
-
-    pub async fn wait_for_startup(&self) {
-        self.has_started.notified().await;
-    }
-
-    /*
-    pub async fn wait_for_shutdown(&self) {
-        self.has_stopped.notified().await;
-    }
-    */
-
-    fn spawn_output_monitoring(
-        mut lines: OutputLines,
-        mut output_handler: OutputHandler,
-    ) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            while let Some(line) = lines.next().await {
-                match line {
-                    Ok(line) => {
-                        output_handler = output_handler.handle(line);
-                    }
-                    Err(err) => log::error!("Failed to read line. Err {err}"),
-                }
-            }
-        })
-    }
-
-    fn spawn_api_pinger() -> JoinHandle<()> {
-        log::debug!("Starting API pinger");
-        let client = Client::new().get(format!("http://{_API_HOST}:{_API_PORT}"));
-        tokio::spawn(async move {
-            loop {
-                let Some(client) = client.try_clone() else {
-                    log::error!("Unable ping API");
-                    break;
-                };
-                log::debug!("Pinging API");
-                match client.send().await {
-                    Ok(response) => log::debug!("? Ping respone: {response:?}"),
-                    Err(err) => log::debug!("? Ping error: {err:?}"),
-                };
-                tokio::time::sleep(_API_PING_DELAY).await;
-            }
-        })
-    }
-}
-
-#[derive(Clone)]
-enum OutputHandler {
-    LookingForStartup { notifier: Arc<Notify> },
-    Logging,
-}
-
-impl OutputHandler {
-    fn handle(self, line: String) -> Self {
-        log::debug!("> {line}");
-        match self {
-            Self::LookingForStartup { notifier } => {
-                if line.starts_with(_STARTUP_MSG) {
-                    notifier.notify_waiters();
-                    return Self::Logging;
-                }
-                Self::LookingForStartup { notifier }
-            }
-            Self::Logging => self,
-        }
-    }
 }
 
 #[cfg(target_family = "windows")]
