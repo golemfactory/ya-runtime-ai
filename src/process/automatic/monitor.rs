@@ -32,8 +32,9 @@ impl OutputMonitor {
         let output_handler = OutputHandler::LookingForStartup {
             notifier: has_started.clone(),
         };
-        let output_task = Arc::new(Self::spawn_output_monitoring(lines, output_handler));
-        let pinger_task = Arc::new(Self::spawn_api_pinger());
+        let output_task = Arc::new(spawn_output_monitoring(lines, output_handler));
+        // Repetitive requests of Automatic API triggers flushing Automatic process `stdout`.
+        let pinger_task = Arc::new(spawn_api_pinger());
         Self {
             has_started,
             has_stopped,
@@ -50,41 +51,45 @@ impl OutputMonitor {
     pub async fn wait_for_shutdown(&self) {
         self.has_stopped.notified().await;
     }
+}
 
-    fn spawn_output_monitoring(
-        mut lines: OutputLines,
-        mut output_handler: OutputHandler,
-    ) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            while let Some(line) = lines.next().await {
-                match line {
-                    Ok(line) => {
-                        output_handler = output_handler.handle(line);
-                    }
-                    Err(err) => log::error!("Failed to read line. Err {err}"),
+fn spawn_output_monitoring(
+    mut lines: OutputLines,
+    mut output_handler: OutputHandler,
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        while let Some(line) = lines.next().await {
+            match line {
+                Ok(line) => {
+                    output_handler = output_handler.handle(line);
                 }
+                Err(err) => log::error!("Failed to read line. Err {err}"),
             }
-        })
-    }
+        }
+    })
+}
 
-    fn spawn_api_pinger() -> JoinHandle<()> {
-        log::debug!("Starting API pinger");
-        let client = Client::new().get(format!("http://{_API_HOST}:{_API_PORT}"));
-        tokio::spawn(async move {
-            loop {
-                let Some(client) = client.try_clone() else {
-                    log::error!("Unable ping API");
-                    break;
-                };
-                log::trace!("Pinging API");
-                match client.send().await {
-                    Ok(response) => log::trace!("Ping respone: {response:?}"),
-                    Err(err) => log::debug!("Ping error: {err:?}"),
-                };
-                tokio::time::sleep(_API_PING_DELAY).await;
-            }
-        })
-    }
+/// Repetitive requests of Automatic API triggers flushing process `stdout`,
+/// which is required to log it, monitoring Automatic startup, and shutdown.
+/// When Automatic is started from console its output gets flushed.
+/// Description and solution idea for faced issue https://stackoverflow.com/a/39528785/2608409
+fn spawn_api_pinger() -> JoinHandle<()> {
+    log::debug!("Starting API pinger");
+    let client = Client::new().get(format!("http://{_API_HOST}:{_API_PORT}"));
+    tokio::spawn(async move {
+        loop {
+            let Some(client) = client.try_clone() else {
+                log::error!("Unable ping API");
+                break;
+            };
+            log::trace!("Pinging API");
+            match client.send().await {
+                Ok(response) => log::trace!("Ping respone: {response:?}"),
+                Err(err) => log::debug!("Ping error: {err:?}"),
+            };
+            tokio::time::sleep(_API_PING_DELAY).await;
+        }
+    })
 }
 
 #[derive(Clone)]
@@ -95,7 +100,7 @@ enum OutputHandler {
 
 impl OutputHandler {
     fn handle(self, line: String) -> Self {
-        Self::log_msg(&line);
+        log_process_output(&line);
         match self {
             Self::LookingForStartup { notifier } => {
                 if line.starts_with(_STARTUP_MSG) {
@@ -107,14 +112,14 @@ impl OutputHandler {
             Self::Logging => self,
         }
     }
+}
 
-    fn log_msg(line: &str) {
-        for message in _LOG_MESSAGES_W_TRACE_LVL {
-            if line.contains(message) {
-                log::trace!("> {line}");
-                return;
-            }
+fn log_process_output(line: &str) {
+    for message in _LOG_MESSAGES_W_TRACE_LVL {
+        if line.contains(message) {
+            log::trace!("> {line}");
+            return;
         }
-        log::debug!("> {line}");
     }
+    log::debug!("> {line}");
 }
