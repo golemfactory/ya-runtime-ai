@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ffi::OsString, io::BufReader, path::PathBuf, process::{ExitStatus, Stdio, ExitCode}, sync::Arc, time::Duration};
+use std::{path::PathBuf, process::{ExitStatus, Stdio, ExitCode}, sync::Arc, time::Duration, collections::HashMap, io::BufReader};
 
 use anyhow::Context;
 use async_trait::async_trait;
@@ -19,7 +19,7 @@ pub struct Automatic {
 
 //TODO parameterize it
 
-static _BASE_DIR: &str = "sd.webui_noxformers";
+static _STARTUP_SCRIPT: &str = "sd.webui_noxformers/run.bat";
 
 static _API_HOST: &str = "http://localhost:7861";
 
@@ -27,19 +27,11 @@ static _API_KILL_PATH: &str = "sdapi/v1/server-kill";
 
 static _MODEL_ARG: &str = "--ckpt";
 
-static _DEFAULT_ARGS: &str = 
-    "--no-download-sd-model \
-    --do-not-download-clip \
-    --skip-prepare-environment \
-    --skip-install \
-    --api \
-    --api-log \
-    --nowebui \
-    --api-server-stop \
-    --log-startup \
-    --skip-torch-cuda-test \
-    --skip-python-version-check \
-    --skip-version-check";
+static _SKIP_TEST_ARGS: [&str; 3] = [
+    "--skip-torch-cuda-test",
+    "--skip-python-version-check",
+    "--skip-version-check",
+];
 
 static _STARTUP_MSG: &str = "Model loaded in ";
 
@@ -47,39 +39,20 @@ static _STARTUP_MSG: &str = "Model loaded in ";
 impl Runtime for Automatic {
     async fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
         log::info!("Start cmd");
-        let base_dir = super::find_exe(_BASE_DIR)?;
-        let webui_dir = base_dir.join("webui");
-        let system_dir = base_dir.join("system").to_string_lossy().to_string();
-
-        let path_env = std::env::var("PATH").context("Can get PATH env var")?;
-        let env:Vec<(OsString, OsString)> = vec![
-            ("PATH".into(),        format!("{system_dir}\\git\\bin;{system_dir}\\python;{system_dir}\\python\\Scripts;{path_env}").into()),
-            ("PY_LIBS".into(),     format!("{system_dir}\\python\\Scripts\\Lib;{system_dir}\\python\\Scripts\\Lib\\site-packages").into()),
-            ("PY_PIP".into(),      format!("{system_dir}\\python\\Scripts").into()),
-            ("PIP_INSTALLER_LOCATION".into(),  format!("{system_dir}\\python\\get-pip.py").into()),
-            // ("PYTHON",                  "python".into()),
-            ("GIT".into(),                     "".into()),
-            ("TRANSFORMERS_CACHE".into(),      format!("{system_dir}\\transformers-cache").into()),
-            ("SD_WEBUI_RESTART".into(),        "tmp/restart".into()),
-            ("ERROR_REPORTING".into(),         "FALSE".into()),
-            ("COMMANDLINE_ARGS".into(),        _DEFAULT_ARGS.into())
-        ];
-        
-        // let exe = exe.to_string_lossy().to_string();
+        let exe = super::find_exe(_STARTUP_SCRIPT)?;
+        let exe = exe.to_string_lossy().to_string();
         // let work_dir = exe.parent().unwrap();
 
         let model = model.and_then(format_path).context("No model arg").unwrap();
-
-        let outfile = std::fs::File::create(base_dir.join("auto.log"))?;
         let mut cmd = Popen::create(&[
-            "python",
+            exe, 
+            _SKIP_TEST_ARGS[0].into(), 
+            _SKIP_TEST_ARGS[1].into(), 
+            _SKIP_TEST_ARGS[2].into(),
             _MODEL_ARG.into(), 
-            &model
+            model
         ], PopenConfig {
-            stdout: subprocess::Redirection::File(outfile),
-            env: Some(env),
-            cwd: Some(base_dir.as_os_str().to_os_string()),
-             ..Default::default()
+            stdout: subprocess::Redirection::Pipe, ..Default::default()
         })?;
         
 

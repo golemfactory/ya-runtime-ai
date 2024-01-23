@@ -1,8 +1,7 @@
-use std::{collections::HashMap, ffi::OsString, io::BufReader, path::PathBuf, process::{ExitStatus, Stdio, ExitCode}, sync::Arc, time::Duration};
+use std::{path::PathBuf, process::{ExitStatus, Stdio, ExitCode}, sync::Arc, time::Duration, collections::HashMap, io::BufReader};
 
 use anyhow::Context;
 use async_trait::async_trait;
-use subprocess::{Exec, Popen, PopenConfig};
 use tokio::{
     sync::{oneshot, Mutex}, runtime::{Builder},
 };
@@ -11,6 +10,7 @@ use tokio_stream::{wrappers::LinesStream, StreamExt};
 use std::io::prelude::*;
 use super::Runtime;
 
+use duct::cmd;
 
 #[derive(Clone)]
 pub struct Automatic {
@@ -52,47 +52,28 @@ impl Runtime for Automatic {
         let system_dir = base_dir.join("system").to_string_lossy().to_string();
 
         let path_env = std::env::var("PATH").context("Can get PATH env var")?;
-        let env:Vec<(OsString, OsString)> = vec![
-            ("PATH".into(),        format!("{system_dir}\\git\\bin;{system_dir}\\python;{system_dir}\\python\\Scripts;{path_env}").into()),
-            ("PY_LIBS".into(),     format!("{system_dir}\\python\\Scripts\\Lib;{system_dir}\\python\\Scripts\\Lib\\site-packages").into()),
-            ("PY_PIP".into(),      format!("{system_dir}\\python\\Scripts").into()),
-            ("PIP_INSTALLER_LOCATION".into(),  format!("{system_dir}\\python\\get-pip.py").into()),
-            // ("PYTHON",                  "python".into()),
-            ("GIT".into(),                     "".into()),
-            ("TRANSFORMERS_CACHE".into(),      format!("{system_dir}\\transformers-cache").into()),
-            ("SD_WEBUI_RESTART".into(),        "tmp/restart".into()),
-            ("ERROR_REPORTING".into(),         "FALSE".into()),
-            ("COMMANDLINE_ARGS".into(),        _DEFAULT_ARGS.into())
-        ];
-        
-        // let exe = exe.to_string_lossy().to_string();
-        // let work_dir = exe.parent().unwrap();
+        let env = HashMap::from([
+            ("PATH",        format!("{system_dir}\\git\\bin;{system_dir}\\python;{system_dir}\\python\\Scripts;{path_env}")),
+            ("PY_LIBS",     format!("{system_dir}\\python\\Scripts\\Lib;{system_dir}\\python\\Scripts\\Lib\\site-packages")),
+            ("PY_PIP",      format!("{system_dir}\\python\\Scripts")),
+            ("PIP_INSTALLER_LOCATION",  format!("{system_dir}\\python\\get-pip.py")),
+            ("PYTHON",                  "python".into()),
+            ("GIT",                     "".into()),
+            ("TRANSFORMERS_CACHE",      format!("{system_dir}\\transformers-cache")),
+            ("SD_WEBUI_RESTART",        "tmp/restart".into()),
+            ("ERROR_REPORTING",         "FALSE".into()),
+            ("COMMANDLINE_ARGS",        _DEFAULT_ARGS.into())
+        ]);
 
         let model = model.and_then(format_path).context("No model arg").unwrap();
-
-        let outfile = std::fs::File::create(base_dir.join("auto.log"))?;
-        let mut cmd = Popen::create(&[
-            "python",
-            _MODEL_ARG.into(), 
-            &model
-        ], PopenConfig {
-            stdout: subprocess::Redirection::File(outfile),
-            env: Some(env),
-            cwd: Some(base_dir.as_os_str().to_os_string()),
-             ..Default::default()
-        })?;
-        
-
-        // let mut cmd = Exec::cmd(&exe,
-        //         "--skip-torch-cuda-test",
-        //         "--skip-python-version-check",
-        //         "--skip-version-check",
-        //         _MODEL_ARG,
-        //         model
-        //     )
-            // .dir(work_dir)
-            // .stderr_to_stdout()
-            // .stdout_path(work_dir.join("automatic.log"));
+        let mut cmd = cmd!("python",
+                "launch.py",
+                _MODEL_ARG,
+                model
+            )
+            .dir(webui_dir)
+            .full_env(env)
+            .stderr_to_stdout();
 
         let (startup_event_sender, startup_event_receiver) = oneshot::channel::<String>();
         let mut output_handler = OutputHandler::LookingForStartup {
@@ -107,42 +88,30 @@ impl Runtime for Automatic {
             .unwrap();
 
         runtime.spawn(async move {
-            loop {
-                match cmd.communicate(None) {
-                    Ok((Some(out), None)) => log::info!(">  {out}"),
-                    Ok((None, Some(err))) => log::info!("!  {err}"),
-                    Ok((Some(out), Some(err))) => log::info!("> {out} - ! {err}"),
-                    _ => tokio::time::sleep(Duration::from_secs(1)).await,
+            let reader = cmd.reader()
+                .map_err(|err| {
+                    log::error!("Failed to spawn process. Err: {err}");
+                    err
+            })
+            .unwrap();
+            let mut buf_lines = BufReader::new(reader);
+            for next_line in buf_lines.lines() {
+                match next_line {
+                    Ok(line) => {
+                        match output_handler.handle(line) {
+                            Ok(handler) => { output_handler = handler },
+                            Err(err) => {
+                                log::error!("Failed to handle process output line. Err {err}");
+                                break;
+                            }
+                        }
+                    },
+                    Err(err) => {
+                        log::error!("Failed to handle process output. Err {err}");
+                        break;
+                    }
                 }
-
             }
-
-            // let reader = cmd.reader()
-            //     .map_err(|err| {
-            //         log::error!("Failed to spawn process. Err: {err}");
-            //         err
-            // })
-            // .unwrap();
-        
-            // let mut bufreader = BufReader::with_capacity(60, reader);
-            // let mut lines = bufreader.lines();
-            // for next_line in lines {
-            //     match next_line {
-            //         Ok(line) => {
-            //             match output_handler.handle(line) {
-            //                 Ok(handler) => { output_handler = handler },
-            //                 Err(err) => {
-            //                     log::error!("Failed to handle process output line. Err {err}");
-            //                     break;
-            //                 }
-            //             }
-            //         },
-            //         Err(err) => {
-            //             log::error!("Failed to handle process output. Err {err}");
-            //             break;
-            //         }
-            //     }
-            // }
         });
 
         log::info!("Waiting for automatic startup.");

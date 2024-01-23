@@ -1,16 +1,13 @@
-use std::{collections::HashMap, ffi::OsString, io::BufReader, path::PathBuf, process::{ExitStatus, Stdio, ExitCode}, sync::Arc, time::Duration};
+use std::{path::PathBuf, process::{ExitStatus, Stdio, ExitCode, Command}, sync::Arc, time::Duration, io::{Read, Write}};
 
 use anyhow::Context;
 use async_trait::async_trait;
-use subprocess::{Exec, Popen, PopenConfig};
 use tokio::{
     sync::{oneshot, Mutex}, runtime::{Builder},
 };
 use tokio_stream::{wrappers::LinesStream, StreamExt};
 
-use std::io::prelude::*;
 use super::Runtime;
-
 
 #[derive(Clone)]
 pub struct Automatic {
@@ -19,7 +16,7 @@ pub struct Automatic {
 
 //TODO parameterize it
 
-static _BASE_DIR: &str = "sd.webui_noxformers";
+static _STARTUP_SCRIPT: &str = "sd.webui_noxformers/run.bat";
 
 static _API_HOST: &str = "http://localhost:7861";
 
@@ -27,72 +24,35 @@ static _API_KILL_PATH: &str = "sdapi/v1/server-kill";
 
 static _MODEL_ARG: &str = "--ckpt";
 
-static _DEFAULT_ARGS: &str = 
-    "--no-download-sd-model \
-    --do-not-download-clip \
-    --skip-prepare-environment \
-    --skip-install \
-    --api \
-    --api-log \
-    --nowebui \
-    --api-server-stop \
-    --log-startup \
-    --skip-torch-cuda-test \
-    --skip-python-version-check \
-    --skip-version-check";
+static _SKIP_TEST_ARGS: [&str; 3] = [
+    "--skip-torch-cuda-test",
+    "--skip-python-version-check",
+    "--skip-version-check",
+];
 
 static _STARTUP_MSG: &str = "Model loaded in ";
+
 
 #[async_trait]
 impl Runtime for Automatic {
     async fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
         log::info!("Start cmd");
-        let base_dir = super::find_exe(_BASE_DIR)?;
-        let webui_dir = base_dir.join("webui");
-        let system_dir = base_dir.join("system").to_string_lossy().to_string();
+        let exe = super::find_exe(_STARTUP_SCRIPT)?;
 
-        let path_env = std::env::var("PATH").context("Can get PATH env var")?;
-        let env:Vec<(OsString, OsString)> = vec![
-            ("PATH".into(),        format!("{system_dir}\\git\\bin;{system_dir}\\python;{system_dir}\\python\\Scripts;{path_env}").into()),
-            ("PY_LIBS".into(),     format!("{system_dir}\\python\\Scripts\\Lib;{system_dir}\\python\\Scripts\\Lib\\site-packages").into()),
-            ("PY_PIP".into(),      format!("{system_dir}\\python\\Scripts").into()),
-            ("PIP_INSTALLER_LOCATION".into(),  format!("{system_dir}\\python\\get-pip.py").into()),
-            // ("PYTHON",                  "python".into()),
-            ("GIT".into(),                     "".into()),
-            ("TRANSFORMERS_CACHE".into(),      format!("{system_dir}\\transformers-cache").into()),
-            ("SD_WEBUI_RESTART".into(),        "tmp/restart".into()),
-            ("ERROR_REPORTING".into(),         "FALSE".into()),
-            ("COMMANDLINE_ARGS".into(),        _DEFAULT_ARGS.into())
-        ];
+        let mut cmd = Command::new(&exe);
+        cmd.args(_SKIP_TEST_ARGS);
         
-        // let exe = exe.to_string_lossy().to_string();
-        // let work_dir = exe.parent().unwrap();
+        if let Some(model) = model.and_then(format_path) {
+            cmd.args([_MODEL_ARG, &model]);
+        } else {
+            log::warn!("No model arg");
+        }
 
-        let model = model.and_then(format_path).context("No model arg").unwrap();
-
-        let outfile = std::fs::File::create(base_dir.join("auto.log"))?;
-        let mut cmd = Popen::create(&[
-            "python",
-            _MODEL_ARG.into(), 
-            &model
-        ], PopenConfig {
-            stdout: subprocess::Redirection::File(outfile),
-            env: Some(env),
-            cwd: Some(base_dir.as_os_str().to_os_string()),
-             ..Default::default()
-        })?;
-        
-
-        // let mut cmd = Exec::cmd(&exe,
-        //         "--skip-torch-cuda-test",
-        //         "--skip-python-version-check",
-        //         "--skip-version-check",
-        //         _MODEL_ARG,
-        //         model
-        //     )
-            // .dir(work_dir)
-            // .stderr_to_stdout()
-            // .stdout_path(work_dir.join("automatic.log"));
+        let work_dir = exe.parent().unwrap();
+        cmd.stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::null())
+            .current_dir(work_dir);
 
         let (startup_event_sender, startup_event_receiver) = oneshot::channel::<String>();
         let mut output_handler = OutputHandler::LookingForStartup {
@@ -102,31 +62,66 @@ impl Runtime for Automatic {
         let runtime = Builder::new_multi_thread()
             .worker_threads(1)
             .thread_name("proces_output_handler")
-            .enable_all()
+            // .enable_all()
             .build()
             .unwrap();
 
         runtime.spawn(async move {
-            loop {
-                match cmd.communicate(None) {
-                    Ok((Some(out), None)) => log::info!(">  {out}"),
-                    Ok((None, Some(err))) => log::info!("!  {err}"),
-                    Ok((Some(out), Some(err))) => log::info!("> {out} - ! {err}"),
-                    _ => tokio::time::sleep(Duration::from_secs(1)).await,
-                }
-
-            }
-
-            // let reader = cmd.reader()
-            //     .map_err(|err| {
-            //         log::error!("Failed to spawn process. Err: {err}");
-            //         err
-            // })
-            // .unwrap();
+            fn communicate(
+                mut stream: impl Read,
+            ) -> std::io::Result<()> {
+                let mut buf = [0u8; 10];
+                loop {
+                    let num_read = stream.read_exact(&mut buf)?;
+                    // if num_read == 0 {
+                    //     break;
+                    // }
         
-            // let mut bufreader = BufReader::with_capacity(60, reader);
-            // let mut lines = bufreader.lines();
-            // for next_line in lines {
+                    // let buf = &buf[..num_read];
+                    let txt = std::str::from_utf8(&buf).expect("Can parse buf");
+                    log::debug!("> {txt}");
+                }
+        
+                Ok(())
+            }
+            
+            let mut child = cmd.spawn()
+                .map_err(|err| { log::error!("Failed to spawn process. Err: {err}"); err})
+                .unwrap();
+
+            let child_out = std::mem::take(&mut child.stdout).expect("cannot attach to child stdout");
+            let child_err = std::mem::take(&mut child.stderr).expect("cannot attach to child stderr");
+
+            let thread_out = std::thread::spawn(move || {
+                communicate(child_out)
+                    .expect("error communicating with child stdout")
+            });
+            let thread_err = std::thread::spawn(move || {
+                communicate(child_err)
+                    .expect("error communicating with child stderr")
+            });
+
+            thread_out.join().unwrap();
+            thread_err.join().unwrap();
+
+            // let stdout = child
+            //     .stdout
+            //     .take()
+            //     .context("Failed to read Automatic stdout")
+            //         .map_err(|err| { log::error!("Failed to get stdout. Err: {err}"); err})
+            //         .unwrap();
+            // let stderr = child
+            //     .stderr
+            //     .take()
+            //     .context("Failed to read Automatic stderr")
+            //     .map_err(|err| { log::error!("Failed to get stderr. Err: {err}"); err})
+            //     .unwrap();
+
+            // let stdout = LinesStream::new(BufReader::new(stdout).lines());
+            // let stderr = LinesStream::new(BufReader::new(stderr).lines());
+            // let mut out = StreamExt::merge(stdout, stderr);
+
+            // while let Some(next_line) = out.next().await {
             //     match next_line {
             //         Ok(line) => {
             //             match output_handler.handle(line) {
