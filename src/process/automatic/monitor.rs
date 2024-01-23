@@ -33,7 +33,7 @@ impl OutputMonitor {
             notifier: has_started.clone(),
         };
         let output_task = Arc::new(spawn_output_monitoring(lines, output_handler));
-        // Repetitive requests of Automatic API triggers flushing Automatic process `stdout`.
+        // Repetitive calling Automatic API triggers flushing Automatic process `stdout`.
         let pinger_task = Arc::new(spawn_api_pinger());
         Self {
             has_started,
@@ -69,8 +69,8 @@ fn spawn_output_monitoring(
     })
 }
 
-/// Repetitive requests of Automatic API triggers flushing process `stdout`,
-/// which is required to log it, monitoring Automatic startup, and shutdown.
+/// Repetitive calling Automatic API triggers flushing process `stdout`.
+/// It is required to log it, to monitor Automatic startup, and its shutdown.
 /// When Automatic is started from console its output gets flushed.
 /// Description and solution idea for faced issue https://stackoverflow.com/a/39528785/2608409
 fn spawn_api_pinger() -> JoinHandle<()> {
