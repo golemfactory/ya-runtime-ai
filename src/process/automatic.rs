@@ -1,4 +1,5 @@
 use std::pin::Pin;
+use std::time::Duration;
 use std::{
     path::PathBuf,
     process::{ExitStatus, Stdio},
@@ -7,13 +8,15 @@ use std::{
 
 use anyhow::Context;
 use async_trait::async_trait;
+use reqwest::Client;
+use tokio::process::ChildStdout;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tokio::{
     io::AsyncBufReadExt,
-    io::{BufReader, Lines},
+    io::BufReader,
     process::{Child, Command},
-    sync::{oneshot, Mutex},
+    sync::Mutex,
 };
 use tokio_stream::{wrappers::LinesStream, StreamExt};
 
@@ -34,6 +37,8 @@ static _API_PORT: u16 = 7861;
 static _API_HOST: &str = "localhost";
 
 static _API_KILL_PATH: &str = "sdapi/v1/server-kill";
+
+static _API_PING_DELAY: Duration = Duration::from_millis(1_000);
 
 static _MODEL_ARG: &str = "--ckpt";
 
@@ -101,7 +106,7 @@ fn build_cmd(model: Option<PathBuf>) -> anyhow::Result<Command> {
 
     let work_dir = script.parent().unwrap();
     cmd.stdout(Stdio::piped())
-        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .stdin(Stdio::null())
         .current_dir(work_dir);
     Ok(cmd)
@@ -152,10 +157,10 @@ fn output_lines(child: &mut Child) -> anyhow::Result<OutputLines> {
 
 #[derive(Clone)]
 struct OutputMonitor {
-    output_task: Arc<JoinHandle<()>>,
-    // ping_task: Arc<JoinHandle<()>>,
     has_started: Arc<Notify>,
     has_stopped: Arc<Notify>,
+    output_task: Arc<JoinHandle<()>>,
+    pinger_task: Arc<JoinHandle<()>>,
 }
 
 impl OutputMonitor {
@@ -166,10 +171,12 @@ impl OutputMonitor {
             notifier: has_started.clone(),
         };
         let output_task = Arc::new(Self::spawn_output_monitoring(lines, output_handler));
+        let pinger_task = Arc::new(Self::spawn_api_pinger());
         Self {
             has_started,
             has_stopped,
             output_task,
+            pinger_task,
         }
     }
 
@@ -177,9 +184,11 @@ impl OutputMonitor {
         self.has_started.notified().await;
     }
 
+    /*
     pub async fn wait_for_shutdown(&self) {
         self.has_stopped.notified().await;
     }
+    */
 
     fn spawn_output_monitoring(
         mut lines: OutputLines,
@@ -196,6 +205,25 @@ impl OutputMonitor {
             }
         })
     }
+
+    fn spawn_api_pinger() -> JoinHandle<()> {
+        log::debug!("Starting API pinger");
+        let client = Client::new().get(format!("http://{_API_HOST}:{_API_PORT}"));
+        tokio::spawn(async move {
+            loop {
+                let Some(client) = client.try_clone() else {
+                    log::error!("Unable ping API");
+                    break;
+                };
+                log::debug!("Pinging API");
+                match client.send().await {
+                    Ok(response) => log::debug!("? Ping respone: {response:?}"),
+                    Err(err) => log::debug!("? Ping error: {err:?}"),
+                };
+                tokio::time::sleep(_API_PING_DELAY).await;
+            }
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -206,7 +234,7 @@ enum OutputHandler {
 
 impl OutputHandler {
     fn handle(self, line: String) -> Self {
-        log::debug!("{line}");
+        log::debug!("> {line}");
         match self {
             Self::LookingForStartup { notifier } => {
                 if line.starts_with(_STARTUP_MSG) {
