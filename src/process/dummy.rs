@@ -22,7 +22,7 @@ fn dummy_filename() -> String {
 impl Runtime for Dummy {
     async fn start(model: Option<PathBuf>) -> anyhow::Result<Dummy> {
         let dummy_filename = dummy_filename();
-        let exe = super::find_exe(dummy_filename)?;
+        let exe = super::find_file(dummy_filename)?;
         let mut cmd = Command::new(&exe);
         let work_dir = exe.parent().unwrap();
         if let Some(model) = model {

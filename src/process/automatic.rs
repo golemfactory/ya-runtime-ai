@@ -1,30 +1,37 @@
+use std::pin::Pin;
 use std::{
     path::PathBuf,
     process::{ExitStatus, Stdio},
     sync::Arc,
 };
 
+use anyhow::Context;
 use async_trait::async_trait;
-
+use tokio::sync::Notify;
+use tokio::task::JoinHandle;
 use tokio::{
     io::AsyncBufReadExt,
-    io::BufReader,
+    io::{BufReader, Lines},
     process::{Child, Command},
     sync::{oneshot, Mutex},
 };
+use tokio_stream::{wrappers::LinesStream, StreamExt};
 
 use super::Runtime;
 
 #[derive(Clone)]
 pub struct Automatic {
     child: Arc<Mutex<Child>>,
+    output_monitor: OutputMonitor,
 }
 
 //TODO parameterize it
 
 static _STARTUP_SCRIPT: &str = "sd.webui_noxformers/run.bat";
 
-static _API_HOST: &str = "http://localhost:7861";
+static _API_PORT: u16 = 7861;
+
+static _API_HOST: &str = "localhost";
 
 static _API_KILL_PATH: &str = "sdapi/v1/server-kill";
 
@@ -41,63 +48,33 @@ static _STARTUP_MSG: &str = "Model loaded in ";
 #[async_trait]
 impl Runtime for Automatic {
     async fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
-        log::info!("Start cmd");
-        let exe = super::find_exe(_STARTUP_SCRIPT)?;
+        log::info!("Building startup cmd");
+        let mut cmd = build_cmd(model)?;
 
-        let mut cmd = Command::new(&exe);
-
-        cmd.args(_SKIP_TEST_ARGS);
-
-        if let Some(model) = model.and_then(format_path) {
-            cmd.args([_MODEL_ARG, &model]);
-        } else {
-            log::warn!("No model arg");
-        }
-
-        let work_dir = exe.parent().unwrap();
-        cmd.stdout(Stdio::piped())
-            .stdin(Stdio::null())
-            .current_dir(work_dir);
-
+        log::info!("Spawning Automatic process");
         let mut child = cmd.kill_on_drop(true).spawn()?;
 
-        let stdout = child.stdout.take();
+        let output = output_lines(&mut child)?;
 
-        let (startup_event_sender, startup_event_receiver) = oneshot::channel::<String>();
-        let mut output_handler = OutputHandler::LookingForStartup {
-            startup_event_sender,
-        };
+        log::info!("Starting monitoring Automatic output");
+        let output_monitor = OutputMonitor::start(output);
 
-        if let Some(stdout) = stdout {
-            tokio::spawn(async move {
-                let mut reader = BufReader::new(stdout).lines();
+        log::info!("Waiting for Automatic startup");
+        output_monitor.wait_for_startup().await;
 
-                while let Some(line) = reader.next_line().await.unwrap_or_else(|e| {
-                    log::debug!("Error reading line from stdout: {}", e);
-                    None
-                }) {
-                    match output_handler.handle(line) {
-                        Ok(new_handler) => output_handler = new_handler,
-                        Err(err) => {
-                            log::error!("Failed to handle process output. Err {err}");
-                            break;
-                        }
-                    }
-                }
-            });
-        }
-
-        _ = startup_event_receiver.await?;
-
+        log::info!("Automatic has started");
         let child = Arc::new(Mutex::new(child));
-        Ok(Self { child })
+        Ok(Self {
+            child,
+            output_monitor,
+        })
     }
 
     async fn stop(&mut self) -> anyhow::Result<()> {
         log::info!("Stopping automatic server");
         let client = reqwest::Client::new();
         client
-            .post(format!("{_API_HOST}/{_API_KILL_PATH}"))
+            .post(format!("http://{_API_HOST}:{_API_PORT}/{_API_KILL_PATH}"))
             .send()
             .await?;
         Ok(())
@@ -107,6 +84,27 @@ impl Runtime for Automatic {
         let mut child = self.child.lock().await;
         child.wait().await
     }
+}
+
+fn build_cmd(model: Option<PathBuf>) -> anyhow::Result<Command> {
+    let script = super::find_file(_STARTUP_SCRIPT)?;
+
+    let mut cmd = Command::new(&script);
+
+    cmd.args(_SKIP_TEST_ARGS);
+
+    if let Some(model) = model.and_then(format_path) {
+        cmd.args([_MODEL_ARG, &model]);
+    } else {
+        log::warn!("No model arg");
+    }
+
+    let work_dir = script.parent().unwrap();
+    cmd.stdout(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stdin(Stdio::null())
+        .current_dir(work_dir);
+    Ok(cmd)
 }
 
 // Automatic needs following ckpt-dir format: C:\\some/path
@@ -135,31 +133,89 @@ fn format_path(path: std::path::PathBuf) -> Option<String> {
     path.to_str().map(str::to_string)
 }
 
+type OutputLines = Pin<Box<dyn futures::Stream<Item = std::io::Result<String>> + Send>>;
+
+fn output_lines(child: &mut Child) -> anyhow::Result<OutputLines> {
+    let stdout = child
+        .stdout
+        .take()
+        .context("Failed to read Automatic stdout")?;
+    let stderr = child
+        .stderr
+        .take()
+        .context("Failed to read Automatic stderr")?;
+
+    let stdout = LinesStream::new(BufReader::new(stdout).lines());
+    let stderr = LinesStream::new(BufReader::new(stderr).lines());
+    Ok(futures::StreamExt::boxed(stdout.merge(stderr)))
+}
+
+#[derive(Clone)]
+struct OutputMonitor {
+    output_task: Arc<JoinHandle<()>>,
+    // ping_task: Arc<JoinHandle<()>>,
+    has_started: Arc<Notify>,
+    has_stopped: Arc<Notify>,
+}
+
+impl OutputMonitor {
+    pub fn start(lines: OutputLines) -> Self {
+        let has_started: Arc<Notify> = Default::default();
+        let has_stopped: Arc<Notify> = Default::default();
+        let output_handler = OutputHandler::LookingForStartup {
+            notifier: has_started.clone(),
+        };
+        let output_task = Arc::new(Self::spawn_output_monitoring(lines, output_handler));
+        Self {
+            has_started,
+            has_stopped,
+            output_task,
+        }
+    }
+
+    pub async fn wait_for_startup(&self) {
+        self.has_started.notified().await;
+    }
+
+    pub async fn wait_for_shutdown(&self) {
+        self.has_stopped.notified().await;
+    }
+
+    fn spawn_output_monitoring(
+        mut lines: OutputLines,
+        mut output_handler: OutputHandler,
+    ) -> JoinHandle<()> {
+        tokio::spawn(async move {
+            while let Some(line) = lines.next().await {
+                match line {
+                    Ok(line) => {
+                        output_handler = output_handler.handle(line);
+                    }
+                    Err(err) => log::error!("Failed to read line. Err {err}"),
+                }
+            }
+        })
+    }
+}
+
+#[derive(Clone)]
 enum OutputHandler {
-    LookingForStartup {
-        startup_event_sender: oneshot::Sender<String>,
-    },
+    LookingForStartup { notifier: Arc<Notify> },
     Logging,
 }
 
 impl OutputHandler {
-    fn handle(self, line: String) -> Result<OutputHandler, String> {
+    fn handle(self, line: String) -> Self {
         log::debug!("{line}");
         match self {
-            Self::LookingForStartup {
-                startup_event_sender,
-            } => {
+            Self::LookingForStartup { notifier } => {
                 if line.starts_with(_STARTUP_MSG) {
-                    startup_event_sender.send(line)?;
-                    return Ok(Self::Logging);
+                    notifier.notify_waiters();
+                    return Self::Logging;
                 }
-                Ok(Self::LookingForStartup {
-                    startup_event_sender,
-                })
+                Self::LookingForStartup { notifier }
             }
-            Self::Logging => {
-                Ok(self)
-            }
+            Self::Logging => self,
         }
     }
 }
