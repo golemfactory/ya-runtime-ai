@@ -85,7 +85,7 @@ fn spawn_api_pinger() -> JoinHandle<()> {
             log::trace!("Pinging API");
             match client.send().await {
                 Ok(response) => log::trace!("Ping respone: {response:?}"),
-                Err(err) => log::debug!("Ping error: {err:?}"),
+                Err(err) => log::warn!("Ping failure: {err:?}"),
             };
             tokio::time::sleep(_API_PING_DELAY).await;
         }
