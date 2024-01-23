@@ -1,5 +1,6 @@
 use anyhow::Context;
 use async_trait::async_trait;
+use futures::TryFutureExt;
 use std::cell::RefCell;
 use std::env::current_exe;
 use std::future::Future;
@@ -75,7 +76,9 @@ impl<T: Runtime + Clone + 'static> ProcessController<T> {
     }
 
     pub async fn start(&self, model: Option<PathBuf>) -> anyhow::Result<()> {
-        let child = T::start(model).await?;
+        let child = T::start(model)
+            .inspect_err(|err| log::error!("Failed to start process. Err {err}"))
+            .await?;
 
         self.inner
             .replace(ProcessControllerInner::Working { child });
