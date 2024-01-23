@@ -39,7 +39,7 @@ enum ProcessControllerInner<T: Runtime + 'static> {
     Stopped {},
 }
 
-pub fn find_exe(file_name: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
+pub fn find_file(file_name: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
     let exe = current_exe()?;
     let parent_dir = exe
         .parent()

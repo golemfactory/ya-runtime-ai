@@ -30,7 +30,7 @@ fn extract_device_info(device_info: BTreeMap<String, serde_json::Value>) -> Opti
 }
 
 pub fn parse_devices_info() -> anyhow::Result<Vec<(String, u64)>> {
-    if let Ok(exe) = process::find_exe("device_detection.exe") {
+    if let Ok(exe) = process::find_file("device_detection.exe") {
         let output = Command::new(exe)
             .arg("ocl")
             .stdin(Stdio::null())
