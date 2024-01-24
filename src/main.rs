@@ -85,7 +85,6 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
             Ok(Err(rpc_message_error)) => log::error!("rpcMessageError : {:?}", rpc_message_error),
             Err(err) => log::error!("other error : {:?}", err),
         }
-        log::debug!("Looping ...");
 
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(1)) => {},

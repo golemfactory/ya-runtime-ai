@@ -1,29 +1,39 @@
+mod monitor;
+
+use super::Runtime;
+use crate::process::automatic::monitor::OutputMonitor;
+use anyhow::Context;
+use async_trait::async_trait;
+use std::pin::Pin;
+use std::time::Duration;
 use std::{
     path::PathBuf,
     process::{ExitStatus, Stdio},
     sync::Arc,
 };
-
-use async_trait::async_trait;
 use tokio::{
     io::AsyncBufReadExt,
     io::BufReader,
     process::{Child, Command},
     sync::Mutex,
+    time::timeout,
 };
-
-use super::Runtime;
+use tokio_stream::{wrappers::LinesStream, StreamExt};
 
 #[derive(Clone)]
 pub struct Automatic {
     child: Arc<Mutex<Child>>,
+    #[allow(dead_code)]
+    output_monitor: monitor::OutputMonitor,
 }
 
 //TODO parameterize it
 
 static _STARTUP_SCRIPT: &str = "sd.webui_noxformers/run.bat";
 
-static _API_HOST: &str = "http://localhost:7861";
+static _API_PORT: u16 = 7861;
+
+static _API_HOST: &str = "localhost";
 
 static _API_KILL_PATH: &str = "sdapi/v1/server-kill";
 
@@ -35,53 +45,41 @@ static _SKIP_TEST_ARGS: [&str; 3] = [
     "--skip-version-check",
 ];
 
+const _STARTUP_TIMEOUT: Duration = Duration::from_secs(90);
+
 #[async_trait]
 impl Runtime for Automatic {
-    fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
-        log::info!("Start cmd");
-        let exe = super::find_exe(_STARTUP_SCRIPT)?;
+    async fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
+        log::info!("Building startup cmd");
+        let mut cmd = build_cmd(model)?;
 
-        let mut cmd = Command::new(&exe);
-
-        cmd.args(_SKIP_TEST_ARGS);
-
-        if let Some(model) = model.and_then(format_path) {
-            cmd.args([_MODEL_ARG, &model]);
-        } else {
-            log::warn!("No model arg");
-        }
-
-        let work_dir = exe.parent().unwrap();
-        cmd.stdout(Stdio::piped())
-            .stdin(Stdio::null())
-            .current_dir(work_dir);
-
+        log::info!("Spawning Automatic process");
         let mut child = cmd.kill_on_drop(true).spawn()?;
 
-        let stdout = child.stdout.take();
+        let output = output_lines(&mut child)?;
 
-        if let Some(stdout) = stdout {
-            tokio::spawn(async move {
-                let mut reader = BufReader::new(stdout).lines();
+        log::info!("Starting monitoring Automatic output");
+        let output_monitor = OutputMonitor::start(output);
 
-                while let Some(line) = reader.next_line().await.unwrap_or_else(|e| {
-                    log::debug!("Error reading line from stdout: {}", e);
-                    None
-                }) {
-                    log::debug!("{}", line);
-                }
-            });
-        }
+        log::info!("Waiting for Automatic startup");
+        timeout(_STARTUP_TIMEOUT, output_monitor.wait_for_startup())
+            .await
+            .context("Waiting for Automatic startup timeout.")?;
 
+        log::info!("Automatic has started");
         let child = Arc::new(Mutex::new(child));
-        Ok(Self { child })
+
+        Ok(Self {
+            child,
+            output_monitor,
+        })
     }
 
     async fn stop(&mut self) -> anyhow::Result<()> {
         log::info!("Stopping automatic server");
         let client = reqwest::Client::new();
         client
-            .post(format!("{_API_HOST}/{_API_KILL_PATH}"))
+            .post(format!("http://{_API_HOST}:{_API_PORT}/{_API_KILL_PATH}"))
             .send()
             .await?;
         Ok(())
@@ -91,6 +89,27 @@ impl Runtime for Automatic {
         let mut child = self.child.lock().await;
         child.wait().await
     }
+}
+
+fn build_cmd(model: Option<PathBuf>) -> anyhow::Result<Command> {
+    let script = super::find_file(_STARTUP_SCRIPT)?;
+
+    let mut cmd = Command::new(&script);
+
+    cmd.args(_SKIP_TEST_ARGS);
+
+    if let Some(model) = model.and_then(format_path) {
+        cmd.args([_MODEL_ARG, &model]);
+    } else {
+        log::warn!("No model arg");
+    }
+
+    let work_dir = script.parent().unwrap();
+    cmd.stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .stdin(Stdio::null())
+        .current_dir(work_dir);
+    Ok(cmd)
 }
 
 // Automatic needs following ckpt-dir format: C:\\some/path
@@ -110,13 +129,30 @@ fn format_path(path: std::path::PathBuf) -> Option<String> {
             return Some(format!("{disk}\\{relative_path}"));
         }
     }
-    log::error!("Unable to build ckpt_dir in correct format from path: {path:?}");
+    log::error!("Unable to correctly format path: {path:?}");
     None
 }
 
 #[cfg(target_family = "unix")]
 fn format_path(path: std::path::PathBuf) -> Option<String> {
     path.to_str().map(str::to_string)
+}
+
+type OutputLines = Pin<Box<dyn futures::Stream<Item = std::io::Result<String>> + Send>>;
+
+fn output_lines(child: &mut Child) -> anyhow::Result<OutputLines> {
+    let stdout = child
+        .stdout
+        .take()
+        .context("Failed to read Automatic stdout")?;
+    let stderr = child
+        .stderr
+        .take()
+        .context("Failed to read Automatic stderr")?;
+
+    let stdout = LinesStream::new(BufReader::new(stdout).lines());
+    let stderr = LinesStream::new(BufReader::new(stderr).lines());
+    Ok(futures::StreamExt::boxed(stdout.merge(stderr)))
 }
 
 #[cfg(target_family = "windows")]

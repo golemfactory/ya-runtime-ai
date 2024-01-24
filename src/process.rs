@@ -1,5 +1,6 @@
 use anyhow::Context;
 use async_trait::async_trait;
+use futures::TryFutureExt;
 use std::cell::RefCell;
 use std::env::current_exe;
 use std::future::Future;
@@ -20,7 +21,7 @@ pub struct Usage {
 
 #[async_trait]
 pub trait Runtime: Sized {
-    fn start(mode: Option<PathBuf>) -> anyhow::Result<Self>;
+    async fn start(mode: Option<PathBuf>) -> anyhow::Result<Self>;
 
     async fn stop(&mut self) -> anyhow::Result<()>;
 
@@ -39,7 +40,7 @@ enum ProcessControllerInner<T: Runtime + 'static> {
     Stopped {},
 }
 
-pub fn find_exe(file_name: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
+pub fn find_file(file_name: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
     let exe = current_exe()?;
     let parent_dir = exe
         .parent()
@@ -75,7 +76,9 @@ impl<T: Runtime + Clone + 'static> ProcessController<T> {
     }
 
     pub async fn start(&self, model: Option<PathBuf>) -> anyhow::Result<()> {
-        let child = T::start(model)?;
+        let child = T::start(model)
+            .inspect_err(|err| log::error!("Failed to start process. Err {err}"))
+            .await?;
 
         self.inner
             .replace(ProcessControllerInner::Working { child });
