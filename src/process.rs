@@ -35,9 +35,9 @@ pub struct ProcessController<T: Runtime + 'static> {
 
 #[allow(clippy::large_enum_variant)]
 enum ProcessControllerInner<T: Runtime + 'static> {
-    Deployed {},
+    Deployed,
     Working { child: T },
-    Stopped {},
+    Stopped,
 }
 
 pub fn find_file(file_name: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
@@ -67,12 +67,13 @@ impl<T: Runtime + Clone + 'static> ProcessController<T> {
         }
     }
 
-    pub async fn stop(&self) {
+    pub async fn stop(&self) -> anyhow::Result<()> {
         let () = self.report().unwrap_or_default();
         let old = self.inner.replace(ProcessControllerInner::Stopped {});
         if let ProcessControllerInner::Working { mut child, .. } = old {
-            let _ = child.stop().await;
+            return child.stop().await;
         }
+        Ok(())
     }
 
     pub async fn start(&self, model: Option<PathBuf>) -> anyhow::Result<()> {

@@ -7,6 +7,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use actix::prelude::*;
+use anyhow::Context;
 use chrono::Utc;
 use clap::Parser;
 use futures::prelude::*;
@@ -56,7 +57,6 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     activity_id: &str,
     process: ProcessController<T>,
     agreement: AgreementDesc,
-    mut signal_receiver: Receiver<Signal>,
 ) -> anyhow::Result<()> {
     let report_service = gsb::service(report_url);
     let start = Utc::now();
@@ -86,27 +86,21 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
             Err(err) => log::error!("other error : {:?}", err),
         }
 
-        tokio::select! {
+        select! {
             _ = tokio::time::sleep(Duration::from_secs(1)) => {},
-            signal = signal_receiver.recv() => {
-                if let Some(signal) = signal {
-                    log::debug!("Received signal {signal}. Stopping runtime");
-                    process.stop().await;
-                }
-            },
             status = process.clone() => {
-                let _err = report_service
-                    .call(activity::local::SetState {
-                        activity_id: activity_id.to_string(),
-                        state: ActivityState {
-                            state: StatePair::from(State::Terminated),
-                            reason: Some("process exit".to_string()),
-                            error_message: Some(format!("status: {:?}", status)),
-                        },
-                        timeout: None,
-                        credentials: None,
-                    })
-                    .await;
+                if let Err(err) = report_service.call(activity::local::SetState {
+                    activity_id: activity_id.to_string(),
+                    state: ActivityState {
+                        state: StatePair::from(State::Terminated),
+                        reason: Some("process exit".to_string()),
+                        error_message: Some(format!("status: {:?}", status)),
+                    },
+                    timeout: None,
+                    credentials: None,
+                }).await {
+                    log::error!("Failed to send state. Err {err}");
+                }
                 log::error!("process exit: {:?}", status);
                 anyhow::bail!("Runtime exited");
             }
@@ -179,7 +173,7 @@ struct ExeUnitContext<T: Runtime + 'static> {
 
 async fn run<T: process::Runtime + Clone + Unpin + 'static>(
     cli: Cli,
-    signal_receiver: Receiver<Signal>,
+    mut signal_receiver: Receiver<Signal>,
 ) -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
@@ -230,7 +224,6 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
         activity_id,
         ctx.process_controller.clone(),
         ctx.agreement.clone(),
-        signal_receiver,
     );
 
     #[cfg(target_os = "windows")]
@@ -333,7 +326,10 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             })
                         }
                         ExeScriptCommand::Terminate { .. } => {
-                            ctx.process_controller.stop().await;
+                            log::info!("Raw Terminate command. Stopping runtime",);
+                            if let Err(err) = ctx.process_controller.stop().await {
+                                log::error!("Failed to terminate process. Err {err}");
+                            }
                             ctx.transfers.send(Shutdown {}).await.ok();
                             send_state(
                                 &ctx,
@@ -416,7 +412,19 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
     )
     .await?;
 
-    activity_pinger.await?;
+    select! {
+        res = activity_pinger => { res }
+        signal = signal_receiver.recv() => {
+            if let Some(signal) = signal {
+                log::debug!("Received signal {signal}. Stopping runtime");
+                ctx.process_controller.stop().await
+                .context("Stopping runtime error")?;
+            }
+            Ok(())
+        },
+    }
+    .context("Activity loop error")?;
+
     log::info!("Finished waiting");
 
     Ok(())

@@ -24,7 +24,7 @@ use tokio_stream::{wrappers::LinesStream, StreamExt};
 pub struct Automatic {
     child: Arc<Mutex<Child>>,
     #[allow(dead_code)]
-    output_monitor: monitor::OutputMonitor,
+    output_monitor: Arc<monitor::OutputMonitor>,
 }
 
 //TODO parameterize it
@@ -58,36 +58,38 @@ impl Runtime for Automatic {
 
         let output = output_lines(&mut child)?;
 
-        log::info!("Starting monitoring Automatic output");
-        let output_monitor = OutputMonitor::start(output);
-
         log::info!("Waiting for Automatic startup");
-        timeout(_STARTUP_TIMEOUT, output_monitor.wait_for_startup())
+        let output_monitor = timeout(_STARTUP_TIMEOUT, OutputMonitor::start(output))
             .await
-            .context("Waiting for Automatic startup timeout.")?;
+            .context("Automatic startup timeout.")??;
 
         log::info!("Automatic has started");
         let child = Arc::new(Mutex::new(child));
 
         Ok(Self {
             child,
-            output_monitor,
+            output_monitor: Arc::new(output_monitor),
         })
     }
 
     async fn stop(&mut self) -> anyhow::Result<()> {
-        log::info!("Stopping automatic server");
+        log::info!("Stopping Automatic server");
         let client = reqwest::Client::new();
-        client
+        if let Err(err) = client
             .post(format!("http://{_API_HOST}:{_API_PORT}/{_API_KILL_PATH}"))
             .send()
-            .await?;
+            .await
+        {
+            log::warn!("Automatic stop request failed. Err {err}");
+        }
         Ok(())
     }
 
     async fn wait(&mut self) -> std::io::Result<ExitStatus> {
         let mut child = self.child.lock().await;
-        child.wait().await
+        let res = child.wait().await;
+        log::debug!("Automatic process has stopped");
+        res
     }
 }
 
