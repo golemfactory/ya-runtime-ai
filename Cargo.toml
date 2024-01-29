@@ -1,6 +1,6 @@
 [package]
 name = "ya-runtime-ai"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,15 +11,17 @@ members = [
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "1428ffe17b5ebf679863fb84576a6e8a7fe97c9a", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "1428ffe17b5ebf679863fb84576a6e8a7fe97c9a" }
-ya-service-bus = "0.6.1"
-ya-client-model = "0.5.0"
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "50ca348a6a9f08e0c3526e1e5167c17d732ebf8e", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "50ca348a6a9f08e0c3526e1e5167c17d732ebf8e", features = ["server"] }
+ya-service-bus = "0.6.3"
+ya-client-model = "0.6.0"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "1428ffe17b5ebf679863fb84576a6e8a7fe97c9a" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "50ca348a6a9f08e0c3526e1e5167c17d732ebf8e" }
+gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "50ca348a6a9f08e0c3526e1e5167c17d732ebf8e" }
 
 actix = "0.13"
 actix-rt = "2"
+async-trait = "0.1.77"
 log = "0.4"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -29,11 +31,19 @@ anyhow = "1.0"
 env_logger = "0.10"
 yansi = "0.5"
 chrono = "0.4"
-tokio = { version = "1.32", features = ["macros"] }
+tokio = { version = "1.32", features = ["macros", "signal"] }
+tokio-stream = { version = "0.1.14", features = ["io-util"] }
+tokio-util = "0.7"
 futures = "0.3"
 flexi_logger = { version = "0.27", features = ["colors"] }
 regex = "1"
-reqwest = "0.11"
+reqwest = { version = "0.11", features = ["blocking", "json"] }
+async-stream = "0.3.5"
+http = "0.2.11"
+bytes = "1.5.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["jobapi2", "processthreadsapi", "handleapi"] }
+
+[patch.crates-io]
+ya-client-model = { git = "https://github.com/golemfactory/ya-client.git", rev = "f2fb8e5392c5fdee0f965309625a561c330a8eae" }

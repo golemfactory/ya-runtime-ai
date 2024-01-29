@@ -1,17 +1,16 @@
 use anyhow::Context;
-use clap::Parser;
+use async_trait::async_trait;
+use futures::TryFutureExt;
 use std::cell::RefCell;
 use std::env::current_exe;
 use std::future::Future;
-use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::pin::{pin, Pin};
 use std::process::ExitStatus;
 use std::rc::Rc;
 use std::task::Poll;
 
-use tokio::process::*;
-
+pub mod automatic;
 pub mod dummy;
 pub mod win;
 
@@ -20,41 +19,28 @@ pub struct Usage {
     pub cnt: u64,
 }
 
-pub trait AiFramework {
-    fn parse_args(args: &[String]) -> anyhow::Result<RuntimeArgs>;
+#[async_trait]
+pub trait Runtime: Sized {
+    async fn start(mode: Option<PathBuf>) -> anyhow::Result<Self>;
 
-    fn start(args: &RuntimeArgs) -> anyhow::Result<Child>;
+    async fn stop(&mut self) -> anyhow::Result<()>;
 
-    fn run<ReportFn: Fn(Usage) + 'static>(stdout: ChildStdout, report_fn: ReportFn);
-}
-
-#[derive(Parser)]
-#[cfg_attr(test, derive(Debug, Eq, PartialEq))]
-pub struct RuntimeArgs {
-    #[arg(long)]
-    pub model: String,
-}
-
-impl RuntimeArgs {
-    pub fn new(cmd: &String, args: &[String]) -> anyhow::Result<Self> {
-        Ok(Self::try_parse_from(std::iter::once(cmd).chain(args))?)
-    }
+    async fn wait(&mut self) -> std::io::Result<ExitStatus>;
 }
 
 #[derive(Clone)]
-pub struct ProcessController<T> {
-    inner: Rc<RefCell<ProcessControllerInner>>,
-    _marker: PhantomData<T>,
+pub struct ProcessController<T: Runtime + 'static> {
+    inner: Rc<RefCell<ProcessControllerInner<T>>>,
 }
 
 #[allow(clippy::large_enum_variant)]
-enum ProcessControllerInner {
+enum ProcessControllerInner<T: Runtime + 'static> {
     Deployed {},
-    Working { child: Child },
+    Working { child: T },
     Stopped {},
 }
 
-pub fn find_exe(file_name: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
+pub fn find_file(file_name: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
     let exe = current_exe()?;
     let parent_dir = exe
         .parent()
@@ -66,11 +52,10 @@ pub fn find_exe(file_name: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
     anyhow::bail!("Unable to get dummy runtime base dir");
 }
 
-impl<T: AiFramework + Clone + 'static> ProcessController<T> {
+impl<T: Runtime + Clone + 'static> ProcessController<T> {
     pub fn new() -> Self {
         ProcessController {
             inner: Rc::new(RefCell::new(ProcessControllerInner::Deployed {})),
-            _marker: Default::default(),
         }
     }
 
@@ -86,26 +71,23 @@ impl<T: AiFramework + Clone + 'static> ProcessController<T> {
         let () = self.report().unwrap_or_default();
         let old = self.inner.replace(ProcessControllerInner::Stopped {});
         if let ProcessControllerInner::Working { mut child, .. } = old {
-            let _ = child.kill().await;
+            let _ = child.stop().await;
         }
     }
 
-    pub async fn start(&self, args: &RuntimeArgs) -> anyhow::Result<()> {
-        let mut child = T::start(args)?;
+    pub async fn start(&self, model: Option<PathBuf>) -> anyhow::Result<()> {
+        let child = T::start(model)
+            .inspect_err(|err| log::error!("Failed to start process. Err {err}"))
+            .await?;
 
-        let opt_stdout = child.stdout.take();
         self.inner
             .replace(ProcessControllerInner::Working { child });
 
-        if let Some(stdout) = opt_stdout {
-            let _me: ProcessController<T> = self.clone();
-            T::run(stdout, move |_| {});
-        }
         Ok(())
     }
 }
 
-impl<T> Future for ProcessController<T> {
+impl<T: Runtime> Future for ProcessController<T> {
     type Output = std::io::Result<ExitStatus>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {

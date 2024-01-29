@@ -2,8 +2,8 @@ use chrono::Utc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use ya_client_model::activity::{CommandResult, ExeScriptCommandResult};
-use ya_transfer::transfer::Progress;
+
+use ya_client_model::activity::{CommandProgress, CommandResult, ExeScriptCommandResult};
 
 #[derive(Clone, Default)]
 pub struct Batches {
@@ -35,6 +35,7 @@ impl Batches {
 }
 
 impl Batch {
+    #[allow(unused)]
     pub fn id(&self) -> String {
         self.id.clone()
     }
@@ -63,7 +64,7 @@ impl Batch {
         self.add_result(CommandResult::Ok, message)
     }
 
-    pub fn update_progress(&self, index: usize, progress: &Progress) {
+    pub fn update_progress(&self, index: usize, progress: &CommandProgress) {
         if let Some(results) = self.results.borrow_mut().get_mut(&self.id) {
             if let Some(result) = results.get_mut(index) {
                 if let Ok(message) = serde_json::to_string(&progress) {
