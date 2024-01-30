@@ -408,7 +408,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
 
         gsb::bind_stream(&exe_unit_url, move |message: GsbHttpCallMessage| {
             let mut proxy = GsbToHttpProxy {
-                base_url: "http://localhost:7861/".to_string()
+                base_url: "http://localhost:7861/".to_string(),
             };
             let stream = proxy.pass(message);
             Box::pin(stream.map(Ok))
