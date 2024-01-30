@@ -41,6 +41,7 @@ async-stream = "0.3.5"
 gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "04bcd84614f9085033d1c09c3f7fc2359dc60296" }
 http = "0.2.11"
 bytes = "1.5.0"
+humantime = "2.1.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["jobapi2", "processthreadsapi", "handleapi"] }

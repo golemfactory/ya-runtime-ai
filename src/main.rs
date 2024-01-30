@@ -12,7 +12,6 @@ use chrono::Utc;
 use clap::Parser;
 use futures::prelude::*;
 use gsb_http_proxy::GsbHttpCall;
-
 use process::Runtime;
 use tokio::select;
 use tokio::sync::{mpsc, mpsc::Receiver, mpsc::Sender};
@@ -295,7 +294,10 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             });
                         }
                         ExeScriptCommand::Start { args, .. } => {
-                            log::debug!("Raw Start cmd args: {args:?} [ignored]");
+                            log::debug!("Raw Start cmd args: {args:?}");
+                            let config = T::parse_args(args).map_err(|e| {
+                                RpcMessageError::Activity(format!("invalid args: {}", e))
+                            })?;
 
                             send_state(
                                 &ctx,
@@ -305,7 +307,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             .map_err(|e| RpcMessageError::Service(e.to_string()))?;
 
                             ctx.process_controller
-                                .start(ctx.model_path.clone())
+                                .start(ctx.model_path.clone(), config)
                                 .await
                                 .map_err(|e| RpcMessageError::Activity(e.to_string()))?;
                             log::debug!("Started process");

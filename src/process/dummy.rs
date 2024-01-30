@@ -3,6 +3,7 @@ use std::process::{ExitStatus, Stdio};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use clap::Parser;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
@@ -18,9 +19,18 @@ fn dummy_filename() -> String {
     format!("dummy{}", std::env::consts::EXE_SUFFIX)
 }
 
+#[derive(Parser, Debug)]
+#[group(id = "dummy")]
+pub(crate) struct Config {
+    #[arg(long)]
+    pub dummy_arg: Option<String>,
+}
+
 #[async_trait]
 impl Runtime for Dummy {
-    async fn start(model: Option<PathBuf>) -> anyhow::Result<Dummy> {
+    type CONFIG = Config;
+
+    async fn start(model: Option<PathBuf>, _config: Self::CONFIG) -> anyhow::Result<Dummy> {
         let dummy_filename = dummy_filename();
         let exe = super::find_file(dummy_filename)?;
         let mut cmd = Command::new(&exe);
@@ -65,5 +75,16 @@ impl Runtime for Dummy {
     async fn wait(&mut self) -> std::io::Result<ExitStatus> {
         let mut child = self.child.lock().await;
         child.wait().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dummy_arg() {
+        let config = Dummy::parse_args(&["--dummy-arg".into(), "dummy".into()]).unwrap();
+        assert!(config.dummy_arg == Some("dummy".into()));
     }
 }
