@@ -10,7 +10,8 @@ use actix::prelude::*;
 use chrono::Utc;
 use clap::Parser;
 use futures::prelude::*;
-use gsb_http_proxy::GsbHttpCall;
+use gsb_http_proxy::gsb_to_http::GsbToHttpProxy;
+use gsb_http_proxy::message::GsbHttpCallMessage;
 
 use process::Runtime;
 use tokio::select;
@@ -405,8 +406,11 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
             }
         });
 
-        gsb::bind_stream(&exe_unit_url, move |mut http_call: GsbHttpCall| {
-            let stream = http_call.execute("http://localhost:7861/".to_string());
+        gsb::bind_stream(&exe_unit_url, move |message: GsbHttpCallMessage| {
+            let mut proxy = GsbToHttpProxy {
+                base_url: "http://localhost:7861/".to_string()
+            };
+            let stream = proxy.pass(message);
             Box::pin(stream.map(Ok))
         });
     };
