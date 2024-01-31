@@ -237,6 +237,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
             let batch = batch.clone();
             let batch_id = exec.batch_id.clone();
             let batch_id_ = exec.batch_id.clone();
+            let runtime_config = cli.runtime_config.clone();
 
             {
                 let _ = ctx
@@ -294,8 +295,8 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             });
                         }
                         ExeScriptCommand::Start { args, .. } => {
-                            log::debug!("Raw Start cmd args: {args:?}");
-                            let config = T::parse_args(args).map_err(|e| {
+                            log::debug!("Raw Start cmd args: {args:?} [ignored]");
+                            let config = T::parse_config(&runtime_config).map_err(|e| {
                                 RpcMessageError::Activity(format!("invalid args: {}", e))
                             })?;
 

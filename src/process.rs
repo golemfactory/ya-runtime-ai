@@ -1,7 +1,10 @@
 use anyhow::Context;
 use async_trait::async_trait;
-use clap::Parser;
+
 use futures::TryFutureExt;
+use serde::de::DeserializeOwned;
+
+use serde_json::Value;
 use std::cell::RefCell;
 use std::env::current_exe;
 use std::future::Future;
@@ -22,13 +25,13 @@ pub struct Usage {
 
 #[async_trait]
 pub(crate) trait Runtime: Sized {
-    type CONFIG: Parser;
+    type CONFIG: DeserializeOwned + Default;
 
-    fn parse_args(args: &[String]) -> anyhow::Result<Self::CONFIG> {
-        Ok(Self::CONFIG::try_parse_from(
-            // Parser requires some command at the begining
-            std::iter::once(&"cmd".to_string()).chain(args),
-        )?)
+    fn parse_config(config: &Option<Value>) -> anyhow::Result<Self::CONFIG> {
+        match config {
+            None => Ok(Self::CONFIG::default()),
+            Some(config) => Ok(serde_json::from_value(config.clone())?),
+        }
     }
 
     async fn start(mode: Option<PathBuf>, config: Self::CONFIG) -> anyhow::Result<Self>;

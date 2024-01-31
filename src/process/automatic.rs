@@ -9,7 +9,7 @@ use super::Runtime;
 use crate::process::automatic::monitor::OutputMonitor;
 use anyhow::Context;
 use async_trait::async_trait;
-use clap::Parser;
+
 use std::pin::Pin;
 use std::{
     path::PathBuf,
@@ -36,12 +36,6 @@ pub struct Automatic {
 #[async_trait]
 impl Runtime for Automatic {
     type CONFIG = Config;
-
-    fn parse_args(args: &[String]) -> anyhow::Result<Self::CONFIG> {
-        Ok(Self::CONFIG::try_parse_from(
-            std::iter::once(&"".to_string()).chain(args),
-        )?)
-    }
 
     async fn start(model: Option<PathBuf>, config: Self::CONFIG) -> anyhow::Result<Automatic> {
         log::info!("Building startup cmd. Config {config:?}");
@@ -174,20 +168,17 @@ mod windows_tests {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
-    use std::time::Duration;
-
-    #[test]
-    fn automatic_args() {
-        let config = Automatic::parse_args(&[
-            "--startup-script".into(),
-            "path/run.bat".into(),
-            "--api-ping-delay".into(),
-            "100ms".into(),
-        ])
-        .unwrap();
-        assert!(config.startup_script == "path/run.bat");
-        assert!(config.api_ping_delay == Duration::from_millis(100));
-    }
+    // #[test]
+    // fn automatic_args() {
+    //     let config = Automatic::parse_args(&[
+    //         "--startup-script".into(),
+    //         "path/run.bat".into(),
+    //         "--api-ping-delay".into(),
+    //         "100ms".into(),
+    //     ])
+    //     .unwrap();
+    //     assert!(config.startup_script == "path/run.bat");
+    //     assert!(config.api_ping_delay == Duration::from_millis(100));
+    // }
 }
