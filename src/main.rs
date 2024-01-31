@@ -236,7 +236,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
     let _job = process::win::JobObject::new()?;
     {
         let batch = ctx.batches.clone();
-        let batch_results = batch.clone();
+        batch.bind_gsb(&exe_unit_url);
 
         let ctx = ctx.clone();
         gsb::bind(&exe_unit_url, move |exec: activity::Exec| {
@@ -249,7 +249,8 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
             let script_future = async move {
                 for exe in &exec.exe_script {
                     match exe {
-                        ExeScriptCommand::Deploy { progress, .. } => {
+                        cmd @ ExeScriptCommand::Deploy { progress, .. } => {
+                            let index = batch.next_command(cmd);
                             send_state(
                                 &ctx,
                                 ActivityState::from(StatePair(
@@ -265,7 +266,6 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                                 ctx.agreement.model
                             );
 
-                            let index = batch.ok_result();
                             let (tx, mut rx) = mpsc::channel::<CommandProgress>(1);
 
                             let batch_ = batch.clone();
@@ -310,10 +310,12 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             send_state(&ctx, ActivityState::from(StatePair(State::Deployed, None)))
                                 .await
                                 .map_err(|e| RpcMessageError::Service(e.to_string()))?;
+                            batch.ok_result();
                         }
-                        ExeScriptCommand::Start { args, .. } => {
+                        cmd @ ExeScriptCommand::Start { args, .. } => {
                             log::debug!("Raw Start cmd args: {args:?} [ignored]");
 
+                            batch.next_command(cmd);
                             send_state(
                                 &ctx,
                                 ActivityState::from(StatePair(State::Deployed, Some(State::Ready))),
@@ -334,7 +336,9 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             log::info!("Got start command, changing state of exe unit to ready",);
                             batch.ok_result();
                         }
-                        ExeScriptCommand::Terminate { .. } => {
+                        cmd @ ExeScriptCommand::Terminate { .. } => {
+                            batch.next_command(cmd);
+
                             ctx.process_controller.stop().await;
                             ctx.transfers.send(Shutdown {}).await.ok();
                             send_state(
@@ -343,12 +347,12 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             )
                             .await
                             .map_err(|e| RpcMessageError::Service(e.to_string()))?;
+
                             batch.ok_result();
                         }
                         cmd => {
                             return Err(RpcMessageError::Activity(format!(
-                                "invalid command for ai runtime: {:?}",
-                                cmd
+                                "invalid command for ai runtime: {cmd:?}",
                             )))
                         }
                     }
@@ -369,17 +373,6 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
             });
             tokio::task::spawn_local(script_future);
             future::ok(batch_id)
-        });
-
-        gsb::bind(&exe_unit_url, move |exec: activity::GetExecBatchResults| {
-            if let Some(result) = batch_results.results(&exec.batch_id) {
-                future::ok(result)
-            } else {
-                future::err(RpcMessageError::NotFound(format!(
-                    "Batch id={}",
-                    exec.batch_id
-                )))
-            }
         });
 
         gsb::bind_stream(&exe_unit_url, move |mut http_call: GsbHttpCall| {
