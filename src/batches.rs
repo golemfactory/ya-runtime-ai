@@ -66,7 +66,7 @@ impl Batches {
 
     pub fn bind_gsb(&self, exe_unit_url: &str) {
         let self_ = self.clone();
-        gsb::bind(&exe_unit_url, move |exec: activity::GetExecBatchResults| {
+        gsb::bind(exe_unit_url, move |exec: activity::GetExecBatchResults| {
             if let Some(result) = self_.results(&exec.batch_id) {
                 future::ok(result)
             } else {
@@ -79,7 +79,7 @@ impl Batches {
 
         let self_ = self.clone();
         gsb::bind_stream(
-            &exe_unit_url,
+            exe_unit_url,
             move |exec: activity::StreamExecBatchResults| {
                 if let Some(batch) = self_.get_batch(&exec.batch_id) {
                     let mut batch = batch.batch.borrow_mut();
