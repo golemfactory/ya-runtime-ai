@@ -77,13 +77,3 @@ impl Runtime for Dummy {
         child.wait().await
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    // #[test]
-    // fn dummy_arg() {
-    //     let config = Dummy::parse_args(&["--dummy-arg".into(), "dummy".into()]).unwrap();
-    //     assert!(config.dummy_arg == Some("dummy".into()));
-    // }
-}

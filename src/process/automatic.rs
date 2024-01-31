@@ -165,20 +165,3 @@ mod windows_tests {
         );
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    // #[test]
-    // fn automatic_args() {
-    //     let config = Automatic::parse_args(&[
-    //         "--startup-script".into(),
-    //         "path/run.bat".into(),
-    //         "--api-ping-delay".into(),
-    //         "100ms".into(),
-    //     ])
-    //     .unwrap();
-    //     assert!(config.startup_script == "path/run.bat");
-    //     assert!(config.api_ping_delay == Duration::from_millis(100));
-    // }
-}

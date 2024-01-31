@@ -170,11 +170,14 @@ struct ExeUnitContext<T: Runtime + 'static> {
     pub model_path: Option<PathBuf>,
 }
 
-async fn run<T: process::Runtime + Clone + Unpin + 'static>(
+async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
     cli: Cli,
     mut signal_receiver: Receiver<Signal>,
 ) -> anyhow::Result<()> {
     dotenv::dotenv().ok();
+
+    let runtime_config = Box::pin(RUNTIME::parse_config(&cli.runtime_config)?);
+    log::info!("Runtime config: {runtime_config:?}");
 
     let (exe_unit_url, report_url, activity_id, args) = match &cli.command {
         Command::ServiceBus {
@@ -213,7 +216,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
             task_package: None,
         })
         .start(),
-        process_controller: process::ProcessController::<T>::new(),
+        process_controller: process::ProcessController::<RUNTIME>::new(),
         batches: Rc::new(RefCell::new(Default::default())),
         model_path: None,
     };
@@ -237,7 +240,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
             let batch = batch.clone();
             let batch_id = exec.batch_id.clone();
             let batch_id_ = exec.batch_id.clone();
-            let runtime_config = cli.runtime_config.clone();
+            let runtime_config = runtime_config.clone();
 
             {
                 let _ = ctx
@@ -296,9 +299,6 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                         }
                         ExeScriptCommand::Start { args, .. } => {
                             log::debug!("Raw Start cmd args: {args:?} [ignored]");
-                            let config = T::parse_config(&runtime_config).map_err(|e| {
-                                RpcMessageError::Activity(format!("invalid args: {}", e))
-                            })?;
 
                             send_state(
                                 &ctx,
@@ -308,7 +308,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             .map_err(|e| RpcMessageError::Service(e.to_string()))?;
 
                             ctx.process_controller
-                                .start(ctx.model_path.clone(), config)
+                                .start(ctx.model_path.clone(), (*runtime_config).clone())
                                 .await
                                 .map_err(|e| RpcMessageError::Activity(e.to_string()))?;
                             log::debug!("Started process");
