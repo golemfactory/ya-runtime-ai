@@ -104,11 +104,15 @@ impl BatchRef {
         self.batch.borrow().id.clone()
     }
 
+    pub fn current(&self) -> usize {
+        self.batch.borrow().results.len()
+    }
+
     /// Call on beginning of execution of new command.
     /// Returns index of next command that will be processed.
     pub fn next_command(&self, cmd: &ExeScriptCommand) -> usize {
         let mut batch = self.batch.borrow_mut();
-        let index = batch.results.len();
+        let index = self.current();
         let event = RuntimeEvent::started(batch.id.clone(), index, cmd.clone());
 
         batch.events.sender().send(event).ok();
@@ -144,17 +148,15 @@ impl BatchRef {
     }
 
     pub fn update_progress(&self, index: usize, progress: &CommandProgress) {
-        let results = &mut self.batch.borrow_mut().results;
-        if let Some(result) = results.get_mut(index) {
-            if let Ok(message) = serde_json::to_string(&progress) {
-                result.message = Some(message);
-            }
-        }
+        let mut batch = self.batch.borrow_mut();
+        let event = RuntimeEvent::progress(batch.id.clone(), index, progress.clone());
+
+        batch.events.sender().send(event).ok();
     }
 
     fn add_result(&self, result: CommandResult, message: Option<String>) -> usize {
         let mut batch = self.batch.borrow_mut();
-        let index = batch.results.len();
+        let index = self.current();
         batch.results.push(ExeScriptCommandResult {
             index: index as u32,
             result,

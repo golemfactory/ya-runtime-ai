@@ -280,8 +280,6 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                                         progress.progress.1.unwrap_or(0)
                                     );
                                     batch_.update_progress(index, &progress);
-
-                                    tokio::time::sleep(Duration::from_secs(1)).await;
                                 }
                             });
 
