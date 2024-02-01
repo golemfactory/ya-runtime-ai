@@ -194,7 +194,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
             args,
         ),
         Command::OfferTemplate => {
-            let template = offer_template::template(cli.runtime)?;
+            let template = offer_template::template()?;
             io::stdout().write_all(template.as_ref())?;
             return Ok(());
         }
