@@ -1,0 +1,19 @@
+{
+    "startup_script": "path/run.bat",
+    "api_port": 80,
+    "api_host": "domain.com",
+    "api_shutdown_path": "/kill/me",
+    "model_arg": "",
+    "additional_args": [
+        "--arg-one",
+        "--arg-two"
+    ],
+    "startup_timeout": "1m",
+    "api_ping_delay": "100ms",
+    "monitored_startup_msg": "Started",
+    "monitored_model_failure_msg": "Failed",
+    "monitored_msgs_w_trace_lvl": [
+        "Unimportant",
+        "Boring log"
+    ]
+}

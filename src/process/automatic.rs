@@ -1,11 +1,16 @@
+pub(crate) mod config;
+
 mod monitor;
 
+use self::config::Config;
+
 use super::Runtime;
+
 use crate::process::automatic::monitor::OutputMonitor;
 use anyhow::Context;
 use async_trait::async_trait;
+
 use std::pin::Pin;
-use std::time::Duration;
 use std::{
     path::PathBuf,
     process::{ExitStatus, Stdio},
@@ -24,82 +29,71 @@ use tokio_stream::{wrappers::LinesStream, StreamExt};
 pub struct Automatic {
     child: Arc<Mutex<Child>>,
     #[allow(dead_code)]
-    output_monitor: monitor::OutputMonitor,
+    output_monitor: Arc<monitor::OutputMonitor>,
+    config: Config,
 }
-
-//TODO parameterize it
-
-static _STARTUP_SCRIPT: &str = "sd.webui_noxformers/run.bat";
-
-static _API_PORT: u16 = 7861;
-
-static _API_HOST: &str = "localhost";
-
-static _API_KILL_PATH: &str = "sdapi/v1/server-kill";
-
-static _MODEL_ARG: &str = "--ckpt";
-
-static _SKIP_TEST_ARGS: [&str; 3] = [
-    "--skip-torch-cuda-test",
-    "--skip-python-version-check",
-    "--skip-version-check",
-];
-
-const _STARTUP_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[async_trait]
 impl Runtime for Automatic {
-    async fn start(model: Option<PathBuf>) -> anyhow::Result<Automatic> {
-        log::info!("Building startup cmd");
-        let mut cmd = build_cmd(model)?;
+    type CONFIG = Config;
+
+    async fn start(model: Option<PathBuf>, config: Self::CONFIG) -> anyhow::Result<Automatic> {
+        log::info!("Building startup cmd. Config {config:?}");
+        let mut cmd = build_cmd(model, &config)?;
 
         log::info!("Spawning Automatic process");
         let mut child = cmd.kill_on_drop(true).spawn()?;
 
         let output = output_lines(&mut child)?;
 
-        log::info!("Starting monitoring Automatic output");
-        let output_monitor = OutputMonitor::start(output);
-
         log::info!("Waiting for Automatic startup");
-        timeout(_STARTUP_TIMEOUT, output_monitor.wait_for_startup())
-            .await
-            .context("Waiting for Automatic startup timeout.")?;
+        let output_monitor = timeout(
+            config.startup_timeout,
+            OutputMonitor::start(output, config.clone()),
+        )
+        .await
+        .context("Automatic startup timeout.")??;
 
         log::info!("Automatic has started");
         let child = Arc::new(Mutex::new(child));
 
         Ok(Self {
             child,
-            output_monitor,
+            output_monitor: Arc::new(output_monitor),
+            config,
         })
     }
 
     async fn stop(&mut self) -> anyhow::Result<()> {
-        log::info!("Stopping automatic server");
+        log::info!("Stopping Automatic server");
         let client = reqwest::Client::new();
-        client
-            .post(format!("http://{_API_HOST}:{_API_PORT}/{_API_KILL_PATH}"))
-            .send()
-            .await?;
+        let url = format!(
+            "http://{}:{}/{}",
+            self.config.api_host, self.config.api_port, self.config.api_shutdown_path
+        );
+        if let Err(err) = client.post(url).send().await {
+            log::warn!("Automatic stop request failed. Err {err}");
+        }
         Ok(())
     }
 
     async fn wait(&mut self) -> std::io::Result<ExitStatus> {
         let mut child = self.child.lock().await;
-        child.wait().await
+        let res = child.wait().await;
+        log::debug!("Automatic process has stopped");
+        res
     }
 }
 
-fn build_cmd(model: Option<PathBuf>) -> anyhow::Result<Command> {
-    let script = super::find_file(_STARTUP_SCRIPT)?;
+fn build_cmd(model: Option<PathBuf>, config: &Config) -> anyhow::Result<Command> {
+    let script = super::find_file(&config.startup_script)?;
 
     let mut cmd = Command::new(&script);
 
-    cmd.args(_SKIP_TEST_ARGS);
+    cmd.args(&config.additional_args);
 
     if let Some(model) = model.and_then(format_path) {
-        cmd.args([_MODEL_ARG, &model]);
+        cmd.args([&config.model_arg, &model]);
     } else {
         log::warn!("No model arg");
     }
@@ -157,7 +151,7 @@ fn output_lines(child: &mut Child) -> anyhow::Result<OutputLines> {
 
 #[cfg(target_family = "windows")]
 #[cfg(test)]
-mod tests {
+mod windows_tests {
     use std::path::Path;
 
     use super::*;

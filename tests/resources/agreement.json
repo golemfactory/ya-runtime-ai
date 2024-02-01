@@ -1,7 +1,7 @@
 {
   "agreementId": "65b470a4702bbeeb61848835cda6b6da170788dadea6e2fb3c79d57a56108aad",
   "demand": {
-    "constraints": "(&(golem.node.debug.subnet=public)\n\t(golem.com.payment.platform.erc20-goerli-tglm.address=*)\n\t(golem.com.pricing.model=linear)\n\t(&(golem.runtime.name=ai)\n\t(golem.runtime.capabilities=dummy)))",
+    "constraints": "(&(golem.node.debug.subnet=public)\n\t(golem.com.payment.platform.erc20-goerli-tglm.address=*)\n\t(golem.com.pricing.model=linear)\n\t(&(golem.runtime.name=ai)))",
     "demandId": "e5877b5ffa204aa882067613dfe1e866-7b06e1ce642491984330d4c114e6c3e7be9f5371feb00e48f601335992328431",
     "properties": {
       "golem": {
@@ -113,9 +113,6 @@
           }
         },
         "runtime": {
-          "capabilities": [
-            "dummy"
-          ],
           "name": "ai",
           "version": "0.1.0"
         },
