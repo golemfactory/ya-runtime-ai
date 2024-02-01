@@ -104,15 +104,11 @@ impl BatchRef {
         self.batch.borrow().id.clone()
     }
 
-    pub fn current(&self) -> usize {
-        self.batch.borrow().results.len()
-    }
-
     /// Call on beginning of execution of new command.
     /// Returns index of next command that will be processed.
     pub fn next_command(&self, cmd: &ExeScriptCommand) -> usize {
         let mut batch = self.batch.borrow_mut();
-        let index = self.current();
+        let index = batch.results.len();
         let event = RuntimeEvent::started(batch.id.clone(), index, cmd.clone());
 
         batch.events.sender().send(event).ok();
@@ -156,7 +152,7 @@ impl BatchRef {
 
     fn add_result(&self, result: CommandResult, message: Option<String>) -> usize {
         let mut batch = self.batch.borrow_mut();
-        let index = self.current();
+        let index = batch.results.len();
         batch.results.push(ExeScriptCommandResult {
             index: index as u32,
             result,
