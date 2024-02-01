@@ -1278,27 +1278,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gsb-http-proxy"
-version = "0.1.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=04bcd84614f9085033d1c09c3f7fc2359dc60296#04bcd84614f9085033d1c09c3f7fc2359dc60296"
-dependencies = [
- "actix-http",
- "actix-web",
- "async-stream",
- "chrono",
- "futures 0.3.30",
- "http 1.0.0",
- "log",
- "mockito",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "ya-service-bus",
-]
-
-[[package]]
 name = "h2"
 version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3580,6 +3559,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "ya-gsb-http-proxy"
+version = "0.1.0"
+source = "git+https://github.com/golemfactory/yagna.git?rev=4f52d69072f78a5be5c9c707fd161c9ed069ad51#4f52d69072f78a5be5c9c707fd161c9ed069ad51"
+dependencies = [
+ "actix-http",
+ "actix-web",
+ "async-stream",
+ "chrono",
+ "futures 0.3.30",
+ "futures-core",
+ "http 1.0.0",
+ "log",
+ "mockito",
+ "reqwest",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "ya-service-bus",
+]
+
+[[package]]
 name = "ya-packet-trace"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3606,7 +3608,6 @@ dependencies = [
  "env_logger",
  "flexi_logger",
  "futures 0.3.30",
- "gsb-http-proxy",
  "http 0.2.11",
  "log",
  "regex",
@@ -3619,6 +3620,7 @@ dependencies = [
  "ya-agreement-utils",
  "ya-client-model 0.6.0",
  "ya-core-model 0.9.0 (git+https://github.com/golemfactory/yagna.git?rev=04bcd84614f9085033d1c09c3f7fc2359dc60296)",
+ "ya-gsb-http-proxy",
  "ya-runtime-api",
  "ya-service-bus",
  "ya-transfer",
