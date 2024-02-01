@@ -58,7 +58,7 @@ struct OfferTemplate {
     constraints: String,
 }
 
-pub fn template(runtime_name: String) -> anyhow::Result<Cow<'static, [u8]>> {
+pub fn template() -> anyhow::Result<Cow<'static, [u8]>> {
     let offer_template = include_bytes!("offer-template.json");
     let mut template: OfferTemplate = serde_json::from_slice(offer_template.as_ref())?;
     let devices = parse_devices_info()?;
