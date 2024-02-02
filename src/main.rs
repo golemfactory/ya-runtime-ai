@@ -279,7 +279,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
                                 .await
                                 .map_err(|e| format!("Failed to send DeployImage: {e}"))
                                 .map_err(RpcMessageError::Service)?
-                                .map_err(|e|format!("DeployImage failed: {e}"))
+                                .map_err(|e| format!("DeployImage failed: {e}"))
                                 .map_err(RpcMessageError::Service)?;
 
                             log::info!("Image deployed: {}", ctx.agreement.model);
