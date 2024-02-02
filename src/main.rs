@@ -215,7 +215,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         transfers: TransferService::new(TransferServiceContext {
             work_dir: args.work_dir.clone(),
             cache_dir: args.cache_dir.clone(),
-            task_package: None,
+            ..TransferServiceContext::default()
         })
         .start(),
         process_controller: process::ProcessController::<RUNTIME>::new(),
