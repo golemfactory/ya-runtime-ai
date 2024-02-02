@@ -4,10 +4,12 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use actix::prelude::*;
+use anyhow::Context;
 use chrono::Utc;
 use clap::Parser;
 use futures::prelude::*;
-use gsb_http_proxy::GsbHttpCall;
+use ya_gsb_http_proxy::gsb_to_http::GsbToHttpProxy;
+use ya_gsb_http_proxy::message::GsbHttpCallMessage;
 
 use process::Runtime;
 use tokio::select;
@@ -55,7 +57,6 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     activity_id: &str,
     process: ProcessController<T>,
     agreement: AgreementDesc,
-    mut signal_receiver: Receiver<Signal>,
 ) -> anyhow::Result<()> {
     let report_service = gsb::service(report_url);
     let start = Utc::now();
@@ -85,27 +86,21 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
             Err(err) => log::error!("other error : {:?}", err),
         }
 
-        tokio::select! {
+        select! {
             _ = tokio::time::sleep(Duration::from_secs(1)) => {},
-            signal = signal_receiver.recv() => {
-                if let Some(signal) = signal {
-                    log::debug!("Received signal {signal}. Stopping runtime");
-                    process.stop().await;
-                }
-            },
             status = process.clone() => {
-                let _err = report_service
-                    .call(activity::local::SetState {
-                        activity_id: activity_id.to_string(),
-                        state: ActivityState {
-                            state: StatePair::from(State::Terminated),
-                            reason: Some("process exit".to_string()),
-                            error_message: Some(format!("status: {:?}", status)),
-                        },
-                        timeout: None,
-                        credentials: None,
-                    })
-                    .await;
+                if let Err(err) = report_service.call(activity::local::SetState {
+                    activity_id: activity_id.to_string(),
+                    state: ActivityState {
+                        state: StatePair::from(State::Terminated),
+                        reason: Some("process exit".to_string()),
+                        error_message: Some(format!("status: {:?}", status)),
+                    },
+                    timeout: None,
+                    credentials: None,
+                }).await {
+                    log::error!("Failed to send state. Err {err}");
+                }
                 log::error!("process exit: {:?}", status);
                 anyhow::bail!("Runtime exited");
             }
@@ -176,11 +171,14 @@ struct ExeUnitContext<T: Runtime + 'static> {
     pub model_path: Option<PathBuf>,
 }
 
-async fn run<T: process::Runtime + Clone + Unpin + 'static>(
+async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
     cli: Cli,
-    signal_receiver: Receiver<Signal>,
+    mut signal_receiver: Receiver<Signal>,
 ) -> anyhow::Result<()> {
     dotenv::dotenv().ok();
+
+    let runtime_config = Box::pin(RUNTIME::parse_config(&cli.runtime_config)?);
+    log::info!("Runtime config: {runtime_config:?}");
 
     let (exe_unit_url, report_url, activity_id, args) = match &cli.command {
         Command::ServiceBus {
@@ -195,7 +193,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
             args,
         ),
         Command::OfferTemplate => {
-            let template = offer_template::template(cli.runtime)?;
+            let template = offer_template::template()?;
             io::stdout().write_all(template.as_ref())?;
             return Ok(());
         }
@@ -219,7 +217,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
             ..TransferServiceContext::default()
         })
         .start(),
-        process_controller: process::ProcessController::<T>::new(),
+        process_controller: process::ProcessController::<RUNTIME>::new(),
         batches: Batches::default(),
         model_path: None,
     };
@@ -229,7 +227,6 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
         activity_id,
         ctx.process_controller.clone(),
         ctx.agreement.clone(),
-        signal_receiver,
     );
 
     #[cfg(target_os = "windows")]
@@ -242,6 +239,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
         gsb::bind(&exe_unit_url, move |exec: activity::Exec| {
             let exec = exec.clone();
             let batch_id = exec.batch_id.clone();
+            let runtime_config = runtime_config.clone();
 
             let batch = ctx.batches.start_batch(&exec.batch_id);
             let batch_ = batch.clone();
@@ -322,7 +320,7 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                             .map_err(|e| RpcMessageError::Service(e.to_string()))?;
 
                             ctx.process_controller
-                                .start(ctx.model_path.clone())
+                                .start(ctx.model_path.clone(), (*runtime_config).clone())
                                 .await
                                 .map_err(|e| RpcMessageError::Activity(e.to_string()))?;
                             log::debug!("Started process");
@@ -337,7 +335,10 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
                         cmd @ ExeScriptCommand::Terminate { .. } => {
                             batch.next_command(cmd);
 
-                            ctx.process_controller.stop().await;
+                            log::info!("Raw Terminate command. Stopping runtime",);
+                            if let Err(err) = ctx.process_controller.stop().await {
+                                log::error!("Failed to terminate process. Err {err}");
+                            }
                             ctx.transfers.send(Shutdown {}).await.ok();
                             send_state(
                                 &ctx,
@@ -373,8 +374,12 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
             future::ok(batch_id)
         });
 
-        gsb::bind_stream(&exe_unit_url, move |mut http_call: GsbHttpCall| {
-            let stream = http_call.execute("http://localhost:7861/".to_string());
+        gsb::bind_stream(&exe_unit_url, move |message: GsbHttpCallMessage| {
+            let mut proxy = GsbToHttpProxy {
+                // base_url: "http://10.30.13.8:7861/".to_string(),
+                base_url: "http://localhost:7861/".to_string(),
+            };
+            let stream = proxy.pass(message);
             Box::pin(stream.map(Ok))
         });
     };
@@ -384,7 +389,19 @@ async fn run<T: process::Runtime + Clone + Unpin + 'static>(
     )
     .await?;
 
-    activity_pinger.await?;
+    select! {
+        res = activity_pinger => { res }
+        signal = signal_receiver.recv() => {
+            if let Some(signal) = signal {
+                log::debug!("Received signal {signal}. Stopping runtime");
+                ctx.process_controller.stop().await
+                .context("Stopping runtime error")?;
+            }
+            Ok(())
+        },
+    }
+    .context("Activity loop error")?;
+
     log::info!("Finished waiting");
 
     Ok(())
