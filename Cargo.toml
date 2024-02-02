@@ -11,13 +11,13 @@ members = [
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "50ca348a6a9f08e0c3526e1e5167c17d732ebf8e", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "50ca348a6a9f08e0c3526e1e5167c17d732ebf8e", features = ["server"] }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "26d7d53b7d6bba696aeb7bb84595d46959c5d43b", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "26d7d53b7d6bba696aeb7bb84595d46959c5d43b", features = ["server"] }
 ya-service-bus = "0.6.3"
 ya-client-model = "0.6.0"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "50ca348a6a9f08e0c3526e1e5167c17d732ebf8e" }
-ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "4f52d69072f78a5be5c9c707fd161c9ed069ad51" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "26d7d53b7d6bba696aeb7bb84595d46959c5d43b" }
+ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "26d7d53b7d6bba696aeb7bb84595d46959c5d43b" }
 
 actix = "0.13"
 actix-rt = "2"
