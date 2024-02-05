@@ -22,7 +22,6 @@ fn dummy_filename() -> String {
 #[derive(Deserialize, Clone, Debug, Default)]
 pub(crate) struct Config {
     #[allow(dead_code)]
-    #[serde(default)]
     pub dummy_arg: Option<String>,
 }
 
