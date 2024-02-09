@@ -78,5 +78,9 @@ pub fn template() -> anyhow::Result<Cow<'static, [u8]>> {
         "golem.inf.gpu.mem".to_string(),
         serde_json::Value::Array(devices.iter().map(|&(_, mem)| mem.into()).collect()),
     );
+    template.properties.insert(
+        "golem.activity.caps.deploy.report-progress".to_string(),
+        serde_json::Value::Bool(true),
+    );
     Ok(Cow::Owned(serde_json::to_vec_pretty(&template)?))
 }
