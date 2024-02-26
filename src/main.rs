@@ -426,8 +426,9 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         signal = signal_receiver.recv() => {
             if let Some(signal) = signal {
                 log::debug!("Received signal {signal}. Stopping runtime");
+
                 ctx.process_controller.stop().await
-                .context("Stopping runtime error")?;
+                    .context("Stopping runtime error")?;
             }
             Ok(())
         },
@@ -435,6 +436,11 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
     .context("Activity loop error")?;
 
     log::info!("Finished waiting");
+    send_state(
+        &ctx,
+        ActivityState::from(StatePair(State::Terminated, None)),
+    )
+    .await?;
 
     Ok(())
 }
