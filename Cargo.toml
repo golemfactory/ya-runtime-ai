@@ -11,12 +11,13 @@ members = [
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "4f52d69072f78a5be5c9c707fd161c9ed069ad51", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "633d025ec830a414a42ea5a712543a758a8fb964" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "26d7d53b7d6bba696aeb7bb84595d46959c5d43b", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "26d7d53b7d6bba696aeb7bb84595d46959c5d43b", features = ["server"] }
 ya-service-bus = "0.6.3"
 ya-client-model = "0.6.0"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "633d025ec830a414a42ea5a712543a758a8fb964" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "26d7d53b7d6bba696aeb7bb84595d46959c5d43b" }
+ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "26d7d53b7d6bba696aeb7bb84595d46959c5d43b" }
 
 actix = "0.13"
 actix-rt = "2"
@@ -31,14 +32,14 @@ env_logger = "0.10"
 yansi = "0.5"
 chrono = "0.4"
 tokio = { version = "1.32", features = ["macros", "signal"] }
-tokio-stream = { version = "0.1.14", features = ["io-util"] }
+tokio-stream = { version = "0.1.14", features = ["io-util", "sync"] }
+tokio-util = "0.7"
 futures = "0.3"
 flexi_logger = { version = "0.27", features = ["colors"] }
 regex = "1"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 async-stream = "0.3.5"
-#ya-gsb-http-proxy = { path = "../yagna/exe-unit/components/gsb-http-proxy" }
-ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "4f52d69072f78a5be5c9c707fd161c9ed069ad51" }
+
 http = "0.2.11"
 bytes = "1.5.0"
 humantime = "2.1"
@@ -46,6 +47,9 @@ humantime-serde = "1.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["jobapi2", "processthreadsapi", "handleapi"] }
+
+[patch.crates-io]
+ya-client-model = { git = "https://github.com/golemfactory/ya-client.git", rev = "f2fb8e5392c5fdee0f965309625a561c330a8eae" }
 
 
 [dev-dependencies]
