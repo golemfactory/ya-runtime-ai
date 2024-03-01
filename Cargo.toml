@@ -11,12 +11,12 @@ members = [
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "4f52d69072f78a5be5c9c707fd161c9ed069ad51", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "633d025ec830a414a42ea5a712543a758a8fb964" }
-ya-service-bus = "0.6.3"
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "fb9a89b11c815b5b6b664ca6c8b1151524420aa3", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "fb9a89b11c815b5b6b664ca6c8b1151524420aa3" }
+ya-service-bus = "0.7.1"
 ya-client-model = "0.6.0"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "633d025ec830a414a42ea5a712543a758a8fb964" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "fb9a89b11c815b5b6b664ca6c8b1151524420aa3" }
 
 actix = "0.13"
 actix-rt = "2"
@@ -37,8 +37,7 @@ flexi_logger = { version = "0.27", features = ["colors"] }
 regex = "1"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 async-stream = "0.3.5"
-#ya-gsb-http-proxy = { path = "../yagna/exe-unit/components/gsb-http-proxy" }
-ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "4f52d69072f78a5be5c9c707fd161c9ed069ad51" }
+ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "fb9a89b11c815b5b6b664ca6c8b1151524420aa3" }
 http = "0.2.11"
 bytes = "1.5.0"
 humantime = "2.1"
@@ -51,3 +50,6 @@ winapi = { version = "0.3", features = ["jobapi2", "processthreadsapi", "handlea
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.1"
+
+[patch.crates-io]
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "fb9a89b11c815b5b6b664ca6c8b1151524420aa3" }
