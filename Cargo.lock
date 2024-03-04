@@ -1249,7 +1249,7 @@ dependencies = [
 [[package]]
 name = "gftp"
 version = "0.4.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=633d025ec830a414a42ea5a712543a758a8fb964#633d025ec830a414a42ea5a712543a758a8fb964"
+source = "git+https://github.com/golemfactory/yagna.git?rev=fb9a89b11c815b5b6b664ca6c8b1151524420aa3#fb9a89b11c815b5b6b664ca6c8b1151524420aa3"
 dependencies = [
  "actix-rt",
  "anyhow",
@@ -1265,7 +1265,7 @@ dependencies = [
  "tokio",
  "url",
  "ya-compile-time-utils",
- "ya-core-model 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ya-core-model",
  "ya-service-bus",
 ]
 
@@ -1759,13 +1759,13 @@ dependencies = [
 
 [[package]]
 name = "mockito"
-version = "1.2.0"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8d3038e23466858569c2d30a537f691fa0d53b51626630ae08262943e3bbb8b"
+checksum = "d2f6e023aa5bdf392aa06c78e4a4e6d498baab5138d0c993503350ebbc37bf1e"
 dependencies = [
  "assert-json-diff",
  "colored",
- "futures 0.3.30",
+ "futures-core",
  "hyper",
  "log",
  "rand 0.8.5",
@@ -2494,6 +2494,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f98d2aa92eebf49b69786be48e4477826b256916e84a57ff2a4f21923b48eb4c"
 
 [[package]]
+name = "ryu-js"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6518fc26bced4d53678a22d6e423e9d8716377def84545fe328236e3af070e7f"
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2612,6 +2618,17 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serde_json_canonicalizer"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8a4c2ea923e1d3d2c03bd1299b7061e015f3bd9dab5a47b34283df9d8ab36a1"
+dependencies = [
+ "ryu-js",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3622,32 +3639,14 @@ dependencies = [
 [[package]]
 name = "ya-core-model"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dddc3bccc5be20eb58baa2f1bc61d62221b28e4d307c5c4bdf363e3c3149ddaa"
+source = "git+https://github.com/golemfactory/yagna.git?rev=fb9a89b11c815b5b6b664ca6c8b1151524420aa3#fb9a89b11c815b5b6b664ca6c8b1151524420aa3"
 dependencies = [
  "chrono",
  "derive_more",
  "log",
  "serde",
  "serde_bytes",
- "structopt",
- "strum 0.24.1",
- "strum_macros 0.24.3",
- "thiserror",
- "ya-client-model 0.5.0",
- "ya-service-bus",
-]
-
-[[package]]
-name = "ya-core-model"
-version = "0.9.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=4f52d69072f78a5be5c9c707fd161c9ed069ad51#4f52d69072f78a5be5c9c707fd161c9ed069ad51"
-dependencies = [
- "chrono",
- "derive_more",
- "log",
- "serde",
- "serde_bytes",
+ "serde_json_canonicalizer",
  "structopt",
  "strum 0.24.1",
  "strum_macros 0.24.3",
@@ -3659,7 +3658,7 @@ dependencies = [
 [[package]]
 name = "ya-gsb-http-proxy"
 version = "0.1.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=4f52d69072f78a5be5c9c707fd161c9ed069ad51#4f52d69072f78a5be5c9c707fd161c9ed069ad51"
+source = "git+https://github.com/golemfactory/yagna.git?rev=fb9a89b11c815b5b6b664ca6c8b1151524420aa3#fb9a89b11c815b5b6b664ca6c8b1151524420aa3"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -3721,7 +3720,7 @@ dependencies = [
  "winapi",
  "ya-agreement-utils",
  "ya-client-model 0.6.0",
- "ya-core-model 0.9.0 (git+https://github.com/golemfactory/yagna.git?rev=4f52d69072f78a5be5c9c707fd161c9ed069ad51)",
+ "ya-core-model",
  "ya-gsb-http-proxy",
  "ya-runtime-api",
  "ya-service-bus",
@@ -3732,7 +3731,7 @@ dependencies = [
 [[package]]
 name = "ya-runtime-api"
 version = "0.7.1"
-source = "git+https://github.com/golemfactory/yagna.git?rev=633d025ec830a414a42ea5a712543a758a8fb964#633d025ec830a414a42ea5a712543a758a8fb964"
+source = "git+https://github.com/golemfactory/yagna.git?rev=fb9a89b11c815b5b6b664ca6c8b1151524420aa3#fb9a89b11c815b5b6b664ca6c8b1151524420aa3"
 dependencies = [
  "anyhow",
  "bytes 1.5.0",
@@ -3777,9 +3776,9 @@ dependencies = [
 
 [[package]]
 name = "ya-service-bus"
-version = "0.6.3"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f791365387355ca43c844e3709bb72e5538db1009ece21cc2ea538a2bb63722"
+checksum = "fa60b9089a5bc247cd8942e6e755f7f5fa66b50583fdd0ef4b3807a2ecc00276"
 dependencies = [
  "actix",
  "flexbuffers",
@@ -3803,7 +3802,7 @@ dependencies = [
 [[package]]
 name = "ya-transfer"
 version = "0.3.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=633d025ec830a414a42ea5a712543a758a8fb964#633d025ec830a414a42ea5a712543a758a8fb964"
+source = "git+https://github.com/golemfactory/yagna.git?rev=fb9a89b11c815b5b6b664ca6c8b1151524420aa3#fb9a89b11c815b5b6b664ca6c8b1151524420aa3"
 dependencies = [
  "actix",
  "actix-http",
@@ -3833,8 +3832,8 @@ dependencies = [
  "tokio-util",
  "url",
  "walkdir",
- "ya-client-model 0.5.0",
- "ya-core-model 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ya-client-model 0.6.0",
+ "ya-core-model",
  "ya-runtime-api",
  "ya-service-bus",
  "ya-utils-futures",
@@ -3845,7 +3844,7 @@ dependencies = [
 [[package]]
 name = "ya-utils-futures"
 version = "0.3.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=633d025ec830a414a42ea5a712543a758a8fb964#633d025ec830a414a42ea5a712543a758a8fb964"
+source = "git+https://github.com/golemfactory/yagna.git?rev=fb9a89b11c815b5b6b664ca6c8b1151524420aa3#fb9a89b11c815b5b6b664ca6c8b1151524420aa3"
 dependencies = [
  "futures 0.3.30",
  "tokio",
@@ -3854,7 +3853,7 @@ dependencies = [
 [[package]]
 name = "ya-utils-path"
 version = "0.1.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=633d025ec830a414a42ea5a712543a758a8fb964#633d025ec830a414a42ea5a712543a758a8fb964"
+source = "git+https://github.com/golemfactory/yagna.git?rev=fb9a89b11c815b5b6b664ca6c8b1151524420aa3#fb9a89b11c815b5b6b664ca6c8b1151524420aa3"
 dependencies = [
  "anyhow",
  "directories",
