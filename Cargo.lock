@@ -3658,7 +3658,7 @@ dependencies = [
 [[package]]
 name = "ya-gsb-http-proxy"
 version = "0.1.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=fb9a89b11c815b5b6b664ca6c8b1151524420aa3#fb9a89b11c815b5b6b664ca6c8b1151524420aa3"
+source = "git+https://github.com/golemfactory/yagna.git?branch=pwalski/gsb_http_proxy_monitor#72143a807878cb0caadc5a1694112817a88071db"
 dependencies = [
  "actix-http",
  "actix-web",

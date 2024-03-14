@@ -10,6 +10,7 @@ use actix::prelude::*;
 use anyhow::Context;
 use chrono::Utc;
 use clap::Parser;
+use counter::RequestCounter;
 use futures::prelude::*;
 use ya_gsb_http_proxy::gsb_to_http::GsbToHttpProxy;
 use ya_gsb_http_proxy::message::GsbHttpCallMessage;
@@ -22,17 +23,20 @@ use ya_client_model::activity::ExeScriptCommand;
 use ya_client_model::activity::{ActivityUsage, CommandResult, ExeScriptCommandResult};
 use ya_core_model::activity;
 use ya_core_model::activity::RpcMessageError;
+use ya_gsb_http_proxy::monitor::DisabledRequestsMonitor;
 use ya_service_bus::typed as gsb;
 use ya_transfer::transfer::{DeployImage, Shutdown, TransferService, TransferServiceContext};
 
 use crate::agreement::AgreementDesc;
 use crate::cli::*;
+use crate::counter::RequestsCounter;
 use crate::logger::*;
 use crate::process::ProcessController;
 use crate::signal::SignalMonitor;
 
 mod agreement;
 mod cli;
+mod counter;
 mod logger;
 mod offer_template;
 mod process;
@@ -58,6 +62,7 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     activity_id: &str,
     process: ProcessController<T>,
     agreement: AgreementDesc,
+    counter: RequestsCounter,
 ) -> anyhow::Result<()> {
     let report_service = gsb::service(report_url);
     let start = Utc::now();
@@ -70,7 +75,9 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
 
         if let Some(idx) = duration_idx {
             current_usage[idx] = duration.to_std()?.as_secs_f64();
+            // fetch request counter data from aggregator
         }
+
         match report_service
             .call(activity::local::SetUsage {
                 activity_id: activity_id.to_string(),
@@ -223,11 +230,14 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         model_path: None,
     };
 
+    let counter = RequestsCounter {};
+
     let activity_pinger = activity_loop(
         report_url,
         activity_id,
         ctx.process_controller.clone(),
         ctx.agreement.clone(),
+        counter,
     );
 
     #[cfg(target_os = "windows")]
@@ -407,9 +417,11 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         });
 
         gsb::bind_stream(&exe_unit_url, move |message: GsbHttpCallMessage| {
+            // inject request counter aggregator
+            let requests_monitor = counter.clone();
             let mut proxy = GsbToHttpProxy {
-                // base_url: "http://10.30.13.8:7861/".to_string(),
                 base_url: "http://localhost:7861/".to_string(),
+                requests_monitor,
             };
             let stream = proxy.pass(message);
             Box::pin(stream.map(Ok))
