@@ -67,16 +67,29 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     let report_service = gsb::service(report_url);
     let start = Utc::now();
     let mut current_usage = agreement.clean_usage_vector();
-    let duration_idx = agreement.resolve_counter("golem.usage.duration_sec");
+    let counter_duration_idx = agreement.resolve_counter("golem.usage.duration_sec");
+    let counter_requests_duration_idx = agreement.resolve_counter("golem.usage.gpu-sec");
+    let counter_requests_count_idx = agreement.resolve_counter("ai-runtime.requests");
 
     while let Some(()) = process.report() {
+
+        // Create duration counter type
         let now = Utc::now();
         let duration = now - start;
-
-        if let Some(idx) = duration_idx {
+        if let Some(idx) = counter_duration_idx {
             current_usage[idx] = duration.to_std()?.as_secs_f64();
-            // fetch request counter data from aggregator
         }
+
+        if let Some(idx) = counter_requests_duration_idx {
+            // TODO make counter to return usage_vector, remove agreement from this function
+            // current_usage[idx] = counter.requests_duration();
+        }
+
+        if let Some(idx) = counter_requests_count_idx {
+            // TODO make counter to return usage_vector, remove agreement from this function
+            // current_usage[idx] = counter.requests_count();
+        }
+
 
         match report_service
             .call(activity::local::SetUsage {
@@ -230,14 +243,14 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         model_path: None,
     };
 
-    let counter = RequestsCounter {};
+    let counter = RequestsCounter::default();
 
     let activity_pinger = activity_loop(
         report_url,
         activity_id,
         ctx.process_controller.clone(),
         ctx.agreement.clone(),
-        counter,
+        counter.clone(),
     );
 
     #[cfg(target_os = "windows")]

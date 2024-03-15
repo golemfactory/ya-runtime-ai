@@ -1403,9 +1403,9 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b32afd38673a8016f7c9ae69e5af41a58f81b1d31689040f2f1959594ce194ea"
+checksum = "21b9ddb458710bc376481b842f5da65cdf31522de232c1ca8146abce2a358258"
 dependencies = [
  "bytes 1.5.0",
  "fnv",
@@ -3658,7 +3658,6 @@ dependencies = [
 [[package]]
 name = "ya-gsb-http-proxy"
 version = "0.1.0"
-source = "git+https://github.com/golemfactory/yagna.git?branch=pwalski/gsb_http_proxy_monitor#72143a807878cb0caadc5a1694112817a88071db"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -3666,7 +3665,7 @@ dependencies = [
  "chrono",
  "futures 0.3.30",
  "futures-core",
- "http 1.0.0",
+ "http 1.1.0",
  "log",
  "mockito",
  "reqwest",
@@ -3706,7 +3705,7 @@ dependencies = [
  "env_logger",
  "flexi_logger",
  "futures 0.3.30",
- "http 0.2.11",
+ "http 1.1.0",
  "humantime",
  "humantime-serde",
  "log",
