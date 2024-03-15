@@ -15,7 +15,7 @@ impl Default for DurationCounter {
 
 impl Counter for DurationCounter {
     fn count(&self) -> f64 {
-        let duration = self.start - Utc::now();
+        let duration = Utc::now() - self.start;
         duration_to_secs(duration)
     }
 }

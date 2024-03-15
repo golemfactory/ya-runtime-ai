@@ -1,19 +1,19 @@
 use ya_gsb_http_proxy::monitor::{RequestsMonitor, ResponseMonitor};
 
-use super::{SharedCounters, RequestMonitoringCounter};
+use super::{RequestMonitoringCounter, SharedCounters};
 
 #[derive(Clone, Debug, Default)]
-pub(super) struct RequestsCounters {
+pub(super) struct RequestsMonitoringCounters {
     counters: SharedCounters,
 }
 
-impl RequestsCounters {
+impl RequestsMonitoringCounters {
     pub(super) fn new(counters: SharedCounters) -> Self {
         Self { counters }
     }
 }
 
-impl RequestsMonitor for RequestsCounters {
+impl RequestsMonitor for RequestsMonitoringCounters {
     async fn on_request(&mut self) -> impl ResponseMonitor {
         let mut counters = self.counters.write().await;
         for counter in &mut *counters {

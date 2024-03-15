@@ -1,7 +1,7 @@
 mod combined;
 mod duration;
+mod requests;
 mod requests_duration;
-mod requests_number;
 
 use std::{str::FromStr, sync::Arc};
 
@@ -10,9 +10,12 @@ use chrono::Duration;
 use tokio::sync::RwLock;
 use ya_gsb_http_proxy::monitor::RequestsMonitor;
 
-use self::{combined::RequestsCounters, duration::DurationCounter, requests_duration::RequestsDurationCounter};
+use self::{
+    combined::RequestsMonitoringCounters, duration::DurationCounter, requests::RequestsCounter,
+    requests_duration::RequestsDurationCounter,
+};
 
-pub(self) type SharedCounters = Arc<RwLock<Vec<SupportedCounter>>>;
+type SharedCounters = Arc<RwLock<Vec<SupportedCounter>>>;
 
 #[derive(Clone, Debug, Default)]
 pub struct Counters {
@@ -45,7 +48,7 @@ impl Counters {
 
     pub fn requests_monitor(&mut self) -> impl RequestsMonitor {
         let counters = self.counters.clone();
-        RequestsCounters::new(counters)
+        RequestsMonitoringCounters::new(counters)
     }
 }
 
@@ -53,7 +56,7 @@ impl Counters {
 enum SupportedCounter {
     Duration(DurationCounter),
     RequestsDuration(RequestsDurationCounter),
-    RequestsCount(DisabledCounter),
+    RequestsCount(RequestsCounter),
 }
 
 impl FromStr for SupportedCounter {
@@ -61,12 +64,12 @@ impl FromStr for SupportedCounter {
 
     fn from_str(counter: &str) -> anyhow::Result<Self, Self::Err> {
         let counter = match counter {
-            "golem.usage.duration_sec" => SupportedCounter::Duration(DurationCounter::default()),
+            "golem.usage.duration_sec" => SupportedCounter::Duration(Default::default()),
             "golem.usage.gpu-sec" => SupportedCounter::RequestsDuration(Default::default()),
-            "ai-runtime.requests" => SupportedCounter::RequestsCount(DisabledCounter::default()),
+            "ai-runtime.requests" => SupportedCounter::RequestsCount(Default::default()),
             _ => bail!("Unsupported counter: {}", counter),
         };
-        return Ok(counter);
+        Ok(counter)
     }
 }
 
@@ -91,24 +94,18 @@ impl Counter for SupportedCounter {
     }
 }
 
-pub(self) trait Counter {
+trait Counter {
     fn count(&self) -> f64;
 }
 
-#[derive(Clone, Debug, Default)]
-struct DisabledCounter {}
-
-impl Counter for DisabledCounter {
-    fn count(&self) -> f64 {
-        0.0
-    }
-}
-
-pub(self) trait RequestMonitoringCounter: Counter {
+trait RequestMonitoringCounter: Counter {
     fn on_request(&mut self);
     fn on_response(&mut self);
 }
 
-pub(self) fn duration_to_secs(duration: Duration) -> f64 {
-    duration.to_std().expect("Duration is bigger than 0").as_secs_f64()
+fn duration_to_secs(duration: Duration) -> f64 {
+    duration
+        .to_std()
+        .expect("Duration is bigger than 0")
+        .as_secs_f64()
 }

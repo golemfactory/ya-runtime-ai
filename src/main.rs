@@ -58,34 +58,11 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
     process: ProcessController<T>,
-    // agreement: AgreementDesc,
     counters: Counters,
 ) -> anyhow::Result<()> {
     let report_service = gsb::service(report_url);
-    // let start = Utc::now();
-    // let mut current_usage = agreement.clean_usage_vector();
-    // let counter_duration_idx = agreement.resolve_counter("golem.usage.duration_sec");
-    // let counter_requests_duration_idx = agreement.resolve_counter("golem.usage.gpu-sec");
-    // let counter_requests_count_idx = agreement.resolve_counter("ai-runtime.requests");
 
     while let Some(()) = process.report() {
-        // // Create duration counter type
-        // let now = Utc::now();
-        // let duration = now - start;
-        // if let Some(idx) = counter_duration_idx {
-        //     current_usage[idx] = duration.to_std()?.as_secs_f64();
-        // }
-
-        // if let Some(idx) = counter_requests_duration_idx {
-        //     // TODO make counter to return usage_vector, remove agreement from this function
-        //     // current_usage[idx] = counter.requests_duration();
-        // }
-
-        // if let Some(idx) = counter_requests_count_idx {
-        //     // TODO make counter to return usage_vector, remove agreement from this function
-        //     // current_usage[idx] = counter.requests_count();
-        // }
-
         let current_usage = counters.current_usage().await;
         let timestamp = Utc::now().timestamp();
         match report_service
@@ -246,7 +223,6 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         report_url,
         activity_id,
         ctx.process_controller.clone(),
-        // ctx.agreement.clone(),
         counters.clone(),
     );
 
@@ -428,7 +404,6 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
 
         let mut counters = counters.clone();
         gsb::bind_stream(&exe_unit_url, move |message: GsbHttpCallMessage| {
-            // inject request counter aggregator
             let requests_monitor = counters.requests_monitor();
             let mut proxy = GsbToHttpProxy {
                 base_url: "http://localhost:7861/".to_string(),
