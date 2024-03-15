@@ -10,11 +10,8 @@ use actix::prelude::*;
 use anyhow::Context;
 use chrono::Utc;
 use clap::Parser;
-use counter::RequestCounter;
+use counter::Counters;
 use futures::prelude::*;
-use ya_gsb_http_proxy::gsb_to_http::GsbToHttpProxy;
-use ya_gsb_http_proxy::message::GsbHttpCallMessage;
-
 use process::Runtime;
 use tokio::select;
 use tokio::sync::{mpsc, mpsc::Receiver, mpsc::Sender};
@@ -23,13 +20,13 @@ use ya_client_model::activity::ExeScriptCommand;
 use ya_client_model::activity::{ActivityUsage, CommandResult, ExeScriptCommandResult};
 use ya_core_model::activity;
 use ya_core_model::activity::RpcMessageError;
-use ya_gsb_http_proxy::monitor::DisabledRequestsMonitor;
+use ya_gsb_http_proxy::gsb_to_http::GsbToHttpProxy;
+use ya_gsb_http_proxy::message::GsbHttpCallMessage;
 use ya_service_bus::typed as gsb;
 use ya_transfer::transfer::{DeployImage, Shutdown, TransferService, TransferServiceContext};
 
 use crate::agreement::AgreementDesc;
 use crate::cli::*;
-use crate::counter::RequestsCounter;
 use crate::logger::*;
 use crate::process::ProcessController;
 use crate::signal::SignalMonitor;
@@ -61,42 +58,42 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
     process: ProcessController<T>,
-    agreement: AgreementDesc,
-    counter: RequestsCounter,
+    // agreement: AgreementDesc,
+    counters: Counters,
 ) -> anyhow::Result<()> {
     let report_service = gsb::service(report_url);
-    let start = Utc::now();
-    let mut current_usage = agreement.clean_usage_vector();
-    let counter_duration_idx = agreement.resolve_counter("golem.usage.duration_sec");
-    let counter_requests_duration_idx = agreement.resolve_counter("golem.usage.gpu-sec");
-    let counter_requests_count_idx = agreement.resolve_counter("ai-runtime.requests");
+    // let start = Utc::now();
+    // let mut current_usage = agreement.clean_usage_vector();
+    // let counter_duration_idx = agreement.resolve_counter("golem.usage.duration_sec");
+    // let counter_requests_duration_idx = agreement.resolve_counter("golem.usage.gpu-sec");
+    // let counter_requests_count_idx = agreement.resolve_counter("ai-runtime.requests");
 
     while let Some(()) = process.report() {
+        // // Create duration counter type
+        // let now = Utc::now();
+        // let duration = now - start;
+        // if let Some(idx) = counter_duration_idx {
+        //     current_usage[idx] = duration.to_std()?.as_secs_f64();
+        // }
 
-        // Create duration counter type
-        let now = Utc::now();
-        let duration = now - start;
-        if let Some(idx) = counter_duration_idx {
-            current_usage[idx] = duration.to_std()?.as_secs_f64();
-        }
+        // if let Some(idx) = counter_requests_duration_idx {
+        //     // TODO make counter to return usage_vector, remove agreement from this function
+        //     // current_usage[idx] = counter.requests_duration();
+        // }
 
-        if let Some(idx) = counter_requests_duration_idx {
-            // TODO make counter to return usage_vector, remove agreement from this function
-            // current_usage[idx] = counter.requests_duration();
-        }
+        // if let Some(idx) = counter_requests_count_idx {
+        //     // TODO make counter to return usage_vector, remove agreement from this function
+        //     // current_usage[idx] = counter.requests_count();
+        // }
 
-        if let Some(idx) = counter_requests_count_idx {
-            // TODO make counter to return usage_vector, remove agreement from this function
-            // current_usage[idx] = counter.requests_count();
-        }
-
-
+        let current_usage = counters.current_usage().await;
+        let timestamp = Utc::now().timestamp();
         match report_service
             .call(activity::local::SetUsage {
                 activity_id: activity_id.to_string(),
                 usage: ActivityUsage {
-                    current_usage: Some(current_usage.clone()),
-                    timestamp: now.timestamp(),
+                    current_usage,
+                    timestamp,
                 },
                 timeout: None,
             })
@@ -228,6 +225,8 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
 
     let agreement = AgreementDesc::load(agreement_path)?;
 
+    let counters = Counters::from_counters(&agreement.counters)?;
+
     let ctx = ExeUnitContext {
         activity_id: activity_id.clone(),
         report_url: report_url.clone(),
@@ -243,14 +242,12 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         model_path: None,
     };
 
-    let counter = RequestsCounter::default();
-
     let activity_pinger = activity_loop(
         report_url,
         activity_id,
         ctx.process_controller.clone(),
-        ctx.agreement.clone(),
-        counter.clone(),
+        // ctx.agreement.clone(),
+        counters.clone(),
     );
 
     #[cfg(target_os = "windows")]
@@ -429,9 +426,10 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
             }
         });
 
+        let mut counters = counters.clone();
         gsb::bind_stream(&exe_unit_url, move |message: GsbHttpCallMessage| {
             // inject request counter aggregator
-            let requests_monitor = counter.clone();
+            let requests_monitor = counters.requests_monitor();
             let mut proxy = GsbToHttpProxy {
                 base_url: "http://localhost:7861/".to_string(),
                 requests_monitor,
