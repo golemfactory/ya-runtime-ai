@@ -214,21 +214,27 @@ mod tests {
             assert_eq!(
                 vec![0.5, 0.0, 0.0],
                 round_vec(c.current_usage().await.unwrap()),
-                "0.5 sec. Assert before first short request"
+                r###"
+                Duration 0.5 sec. Assert before first short request. 
+                Request (GPU) duration counter had not increased.
+                "###
             );
 
             tokio::time::sleep(delay).await;
             assert_eq!(
                 vec![1.5, 1.0, 0.5],
                 round_vec(c.current_usage().await.unwrap()),
-                "1.5 sec. Assert after first short request start"
+                r###"
+                Duration 1.5 sec. Assert after first short request start (before its end).
+                Request counter increased and Request duration (GPU) counter increased.
+                "###
             );
 
             tokio::time::sleep(delay).await;
             assert_eq!(
                 vec![2.5, 2.0, 1.5],
                 round_vec(c.current_usage().await.unwrap()),
-                "2.5 sec. Assert after first short request end and after long request start."
+                "Duration 2.5 sec. Assert after first short request end and after long request start."
             );
 
             tokio::time::sleep(delay).await;
@@ -236,7 +242,7 @@ mod tests {
                 vec![3.5, 3.0, 2.5],
                 round_vec(c.current_usage().await.unwrap()),
                 r###"
-                3.5 sec. Assert after second short request end and before long request stop. 
+                Duration 3.5 sec. Assert after second short request end and before long request stop. 
                 Overlapping requests did not increse Request (GPU) duration counter.
                 "###
             );
@@ -245,7 +251,7 @@ mod tests {
             assert_eq!(
                 vec![4.5, 3.0, 3.0],
                 round_vec(c.current_usage().await.unwrap()),
-                "4.5 sec. Assert before third short request start and after long request stop"
+                "Duration 4.5 sec. Assert before third short request start and after long request stop"
             );
         });
 
@@ -254,7 +260,7 @@ mod tests {
         assert_eq!(
             vec![6.0, 4.0, 4.0],
             round_vec(counters.current_usage().await.unwrap()),
-            "6.0 sec. Final assert after third short request end."
+            "Duration 6.0 sec. Final assert after third short request end."
         );
     }
 
