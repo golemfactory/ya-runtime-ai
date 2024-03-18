@@ -1,6 +1,6 @@
 use ya_gsb_http_proxy::monitor::{RequestsMonitor, ResponseMonitor};
 
-use super::{RequestMonitoringCounter, SharedCounters};
+use super::SharedCounters;
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct RequestsMonitoringCounters {

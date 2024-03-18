@@ -1,6 +1,6 @@
 use super::{Counter, RequestMonitoringCounter};
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Debug, Default)]
 pub(super) struct RequestsCounter {
     count: u64,
 }
