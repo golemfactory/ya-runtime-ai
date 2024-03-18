@@ -1,3 +1,4 @@
+use tokio::runtime::Handle;
 use ya_gsb_http_proxy::monitor::{RequestsMonitor, ResponseMonitor};
 
 use super::SharedCounters;
@@ -29,7 +30,7 @@ impl RequestsMonitor for RequestsMonitoringCounters {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 struct ResponseMonitors {
     counters: SharedCounters,
     // failsafe flag to count response on Drop if not counted already.
@@ -38,11 +39,19 @@ struct ResponseMonitors {
 
 impl ResponseMonitor for ResponseMonitors {
     async fn on_response(mut self) {
-        let mut counters = self.counters.write().await;
+        let counters = self.counters.write().await;
         if self.counted {
             return;
         };
         self.counted = true;
+        ResponseMonitors::on_response(counters);
+    }
+}
+
+impl ResponseMonitors {
+    fn on_response(
+        mut counters: tokio::sync::RwLockWriteGuard<'_, Vec<crate::counter::SupportedCounter>>,
+    ) {
         for counter in &mut *counters {
             if let Some(counter) = counter.request_monitoring_counter() {
                 counter.on_response();
@@ -57,9 +66,19 @@ impl Drop for ResponseMonitors {
         if self.counted {
             return;
         }
-        let dropped = std::mem::replace(self, Default::default());
-        if !dropped.counted {
-            tokio::spawn(dropped.on_response());
-        }
+        self.counted = true;
+        match Handle::try_current() {
+            Ok(runtime) => {
+                let counters = self.counters.clone();
+                runtime.spawn(async move {
+                    let counters = counters.write().await;
+                    ResponseMonitors::on_response(counters);
+                });
+            }
+            Err(_) => {
+                let counters = self.counters.blocking_write();
+                ResponseMonitors::on_response(counters);
+            }
+        };
     }
 }

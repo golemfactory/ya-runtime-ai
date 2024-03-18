@@ -124,7 +124,7 @@ mod tests {
         .expect("Creates counters");
         let counters = c.counters.read().await;
         assert!(matches!(
-            counters.get(0),
+            counters.first(),
             Some(&SupportedCounter::RequestsCount(..))
         ));
         assert!(matches!(
@@ -144,7 +144,7 @@ mod tests {
             .expect("Creates counters");
         let counters = counters.counters.read().await;
         assert!(matches!(
-            counters.get(0),
+            counters.first(),
             Some(&SupportedCounter::Duration(..))
         ));
         assert_eq!(counters.len(), 1);
@@ -152,14 +152,13 @@ mod tests {
 
     #[tokio::test]
     async fn zero_counter_error_test() {
-        let counters = Counters::from_counters(&vec!["golem.usage.duration_sec".into()])
-            .expect("Creates counters");
+        let counters = Counters::from_counters(&vec![]).expect("Creates empty counters collection");
         let counters = counters.counters.read().await;
         assert!(counters.is_empty());
     }
 
     #[tokio::test]
-    async fn counting_test() {
+    async fn overlapping_requests_counter_test() {
         let counters = Counters::from_counters(&vec![
             "golem.usage.duration_sec".into(),
             "ai-runtime.requests".into(),
@@ -207,7 +206,7 @@ mod tests {
             assert_eq!(
                 vec![0.0, 0.0, 0.0],
                 round_vec(c.current_usage().await.unwrap()),
-                "0 sec. Initial assert"
+                "Duration 0 sec. Initial assert"
             );
 
             tokio::time::sleep(delay / 2).await;
@@ -264,6 +263,53 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn unhandled_response_event_test() {
+        let counters = Counters::from_counters(&vec![
+            "golem.usage.duration_sec".into(),
+            "ai-runtime.requests".into(),
+            "golem.usage.gpu-sec".into(),
+        ])
+        .expect("Creates counters");
+
+        let test_tasks = task::LocalSet::new();
+
+        let delay = std::time::Duration::from_secs(1);
+        let mut requests_monitor = counters.requests_monitor();
+
+        // 3 requests at step 1, 3, and 5.
+        test_tasks.spawn_local(async move {
+            tokio::time::sleep(delay / 2).await;
+            let _response_monitor = requests_monitor.on_request().await;
+            tokio::time::sleep(delay).await;
+        });
+
+        // checking counters
+        let c = counters.clone();
+        test_tasks.spawn_local(async move {
+            assert_eq!(
+                vec![0.0, 0.0, 0.0],
+                round_vec(c.current_usage().await.unwrap()),
+                "Duration 0 sec. Initial assert"
+            );
+
+            tokio::time::sleep(delay).await;
+            assert_eq!(
+                vec![1.0, 1.0, 0.5],
+                round_vec(c.current_usage().await.unwrap()),
+                "Duration 1.0 sec. Request started"
+            );
+        });
+
+        test_tasks.await;
+
+        assert_eq!(
+            vec![1.5, 1.0, 1.0],
+            round_vec(counters.current_usage().await.unwrap()),
+            "Duration 1.0 sec. Request closed on response monitor drop (Response (GPU) duration 1 sec)."
+        );
+    }
+
     fn round_vec(vec: Vec<f64>) -> Vec<f64> {
         vec.into_iter().map(|x| round_floor_f64(x, 1)).collect()
     }
@@ -272,7 +318,7 @@ mod tests {
         if x == 0.0 {
             return 0.0;
         }
-        let y: f64 = 10f64.powi(decimals) as f64;
+        let y: f64 = 10f64.powi(decimals);
         (x * y).floor() / y
     }
 }

@@ -1903,7 +1903,7 @@ dependencies = [
 [[package]]
 name = "gftp"
 version = "0.4.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=c2c9279fa8be78db8fd291dca6200962b6cf0fdb#c2c9279fa8be78db8fd291dca6200962b6cf0fdb"
+source = "git+https://github.com/golemfactory/yagna.git?rev=1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e#1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e"
 dependencies = [
  "actix-rt",
  "anyhow",
@@ -5685,7 +5685,7 @@ dependencies = [
 [[package]]
 name = "ya-core-model"
 version = "0.9.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=c2c9279fa8be78db8fd291dca6200962b6cf0fdb#c2c9279fa8be78db8fd291dca6200962b6cf0fdb"
+source = "git+https://github.com/golemfactory/yagna.git?rev=1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e#1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e"
 dependencies = [
  "chrono",
  "derive_more",
@@ -5706,7 +5706,7 @@ dependencies = [
 [[package]]
 name = "ya-gsb-http-proxy"
 version = "0.1.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=c2c9279fa8be78db8fd291dca6200962b6cf0fdb#c2c9279fa8be78db8fd291dca6200962b6cf0fdb"
+source = "git+https://github.com/golemfactory/yagna.git?rev=1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e#1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -5779,7 +5779,7 @@ dependencies = [
 [[package]]
 name = "ya-runtime-api"
 version = "0.7.1"
-source = "git+https://github.com/golemfactory/yagna.git?rev=c2c9279fa8be78db8fd291dca6200962b6cf0fdb#c2c9279fa8be78db8fd291dca6200962b6cf0fdb"
+source = "git+https://github.com/golemfactory/yagna.git?rev=1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e#1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e"
 dependencies = [
  "anyhow",
  "bytes 1.5.0",
@@ -5850,7 +5850,7 @@ dependencies = [
 [[package]]
 name = "ya-transfer"
 version = "0.3.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=c2c9279fa8be78db8fd291dca6200962b6cf0fdb#c2c9279fa8be78db8fd291dca6200962b6cf0fdb"
+source = "git+https://github.com/golemfactory/yagna.git?rev=1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e#1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e"
 dependencies = [
  "actix",
  "actix-http",
@@ -5892,7 +5892,7 @@ dependencies = [
 [[package]]
 name = "ya-utils-futures"
 version = "0.3.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=c2c9279fa8be78db8fd291dca6200962b6cf0fdb#c2c9279fa8be78db8fd291dca6200962b6cf0fdb"
+source = "git+https://github.com/golemfactory/yagna.git?rev=1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e#1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e"
 dependencies = [
  "futures 0.3.30",
  "tokio",
@@ -5901,7 +5901,7 @@ dependencies = [
 [[package]]
 name = "ya-utils-path"
 version = "0.1.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=c2c9279fa8be78db8fd291dca6200962b6cf0fdb#c2c9279fa8be78db8fd291dca6200962b6cf0fdb"
+source = "git+https://github.com/golemfactory/yagna.git?rev=1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e#1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e"
 dependencies = [
  "anyhow",
  "directories",

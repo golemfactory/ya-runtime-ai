@@ -11,12 +11,12 @@ members = [
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "c2c9279fa8be78db8fd291dca6200962b6cf0fdb", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "c2c9279fa8be78db8fd291dca6200962b6cf0fdb" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e" }
 ya-service-bus = "0.7.1"
 ya-client-model = "0.6.0"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "c2c9279fa8be78db8fd291dca6200962b6cf0fdb" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e" }
 
 actix = "0.13"
 actix-rt = "2"
@@ -37,7 +37,7 @@ flexi_logger = { version = "0.28", features = ["colors"] }
 regex = "1"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 async-stream = "0.3.5"
-ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "c2c9279fa8be78db8fd291dca6200962b6cf0fdb" }
+ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e" }
 http = "1.1.0"
 bytes = "1.5.0"
 humantime = "2.1"
@@ -52,4 +52,4 @@ assert_cmd = "2.0"
 predicates = "3.1"
 
 [patch.crates-io]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "c2c9279fa8be78db8fd291dca6200962b6cf0fdb" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "1b84e87a3e5af163bfa5f6ef56144ed4f17cb57e" }
