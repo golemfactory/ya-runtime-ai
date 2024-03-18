@@ -402,7 +402,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
             }
         });
 
-        let mut counters = counters.clone();
+        let counters = counters.clone();
         gsb::bind_stream(&exe_unit_url, move |message: GsbHttpCallMessage| {
             let requests_monitor = counters.requests_monitor();
             let mut proxy = GsbToHttpProxy {

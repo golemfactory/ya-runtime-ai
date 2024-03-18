@@ -26,9 +26,6 @@ impl Counters {
     /// From list of Agreement counter names
     /// Fails on unsupported counter
     pub fn from_counters(counter_names: &Vec<String>) -> anyhow::Result<Self> {
-        if counter_names.is_empty() {
-            bail!("Agreement has no counters");
-        }
         let mut counters = Vec::with_capacity(counter_names.len());
         for counter in counter_names {
             let counter = SupportedCounter::from_str(counter)?;
@@ -46,7 +43,7 @@ impl Counters {
         Some(current_usage)
     }
 
-    pub fn requests_monitor(&mut self) -> impl RequestsMonitor {
+    pub fn requests_monitor(&self) -> impl RequestsMonitor {
         let counters = self.counters.clone();
         RequestsMonitoringCounters::new(counters)
     }

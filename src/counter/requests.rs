@@ -12,7 +12,6 @@ impl Counter for RequestsCounter {
 }
 
 impl RequestMonitoringCounter for RequestsCounter {
-
     fn on_request(&mut self) {
         self.count += 1;
     }

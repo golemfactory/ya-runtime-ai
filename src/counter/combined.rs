@@ -54,7 +54,10 @@ impl ResponseMonitor for ResponseMonitors {
 // Failsafe for not calling `on_response`.
 impl Drop for ResponseMonitors {
     fn drop(&mut self) {
-        let dropped = std::mem::take(self);
+        if self.counted {
+            return;
+        }
+        let dropped = std::mem::replace(self, Default::default());
         if !dropped.counted {
             tokio::spawn(dropped.on_response());
         }

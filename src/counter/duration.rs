@@ -4,7 +4,7 @@ use super::{duration_to_secs, Counter};
 
 #[derive(Clone, Debug)]
 pub(super) struct DurationCounter {
-    start: DateTime<Utc>
+    start: DateTime<Utc>,
 }
 
 impl Default for DurationCounter {

@@ -27,7 +27,6 @@ impl Counter for RequestsDurationCounter {
 }
 
 impl RequestMonitoringCounter for RequestsDurationCounter {
-
     fn on_request(&mut self) {
         self.active_requests_count += 1;
         if self.first_active_request_start_time.is_none() {
@@ -47,6 +46,10 @@ impl RequestMonitoringCounter for RequestsDurationCounter {
 impl Default for RequestsDurationCounter {
     fn default() -> Self {
         let duration = Duration::zero();
-        Self { duration, active_requests_count: 0, first_active_request_start_time: None }
+        Self {
+            duration,
+            active_requests_count: 0,
+            first_active_request_start_time: None,
+        }
     }
 }
