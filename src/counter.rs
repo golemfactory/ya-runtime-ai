@@ -6,7 +6,7 @@ mod requests_duration;
 use std::{str::FromStr, sync::Arc};
 
 use anyhow::bail;
-use chrono::Duration;
+use chrono::{DateTime, Duration, Utc};
 use tokio::sync::RwLock;
 use ya_gsb_http_proxy::monitor::RequestsMonitor;
 
@@ -17,22 +17,29 @@ use self::{
 
 type SharedCounters = Arc<RwLock<Vec<SupportedCounter>>>;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Counters {
     counters: SharedCounters,
+    requests_monitor: RequestsMonitoringCounters,
 }
 
 impl Counters {
-    /// From list of Agreement counter names
-    /// Fails on unsupported counter
-    pub fn from_counters(counter_names: &Vec<String>) -> anyhow::Result<Self> {
+    /// Creates counters from Agreement counter names and starts requests monitoring counters.
+    /// Fails on unsupported counter.
+    pub fn start(counter_names: &Vec<String>) -> anyhow::Result<Self> {
         let mut counters = Vec::with_capacity(counter_names.len());
         for counter in counter_names {
             let counter = SupportedCounter::from_str(counter)?;
             counters.push(counter);
         }
         let counters = Arc::new(RwLock::new(counters));
-        Ok(Self { counters })
+
+        let requests_monitor = RequestsMonitoringCounters::start(counters.clone());
+
+        Ok(Self {
+            counters,
+            requests_monitor,
+        })
     }
 
     /// Returns usage reported by counters in Agreement specified order.
@@ -44,8 +51,7 @@ impl Counters {
     }
 
     pub fn requests_monitor(&self) -> impl RequestsMonitor {
-        let counters = self.counters.clone();
-        RequestsMonitoringCounters::new(counters)
+        self.requests_monitor.clone()
     }
 }
 
@@ -96,8 +102,8 @@ trait Counter {
 }
 
 trait RequestMonitoringCounter: Counter {
-    fn on_request(&mut self);
-    fn on_response(&mut self);
+    fn on_request(&mut self, request_time: DateTime<Utc>);
+    fn on_response(&mut self, response_time: DateTime<Utc>);
 }
 
 fn duration_to_secs(duration: Duration) -> f64 {
@@ -116,7 +122,7 @@ mod tests {
 
     #[tokio::test]
     async fn counters_order_test() {
-        let c = Counters::from_counters(&vec![
+        let c = Counters::start(&vec![
             "ai-runtime.requests".into(),
             "golem.usage.duration_sec".into(),
             "golem.usage.gpu-sec".into(),
@@ -140,8 +146,8 @@ mod tests {
 
     #[tokio::test]
     async fn one_counter_test() {
-        let counters = Counters::from_counters(&vec!["golem.usage.duration_sec".into()])
-            .expect("Creates counters");
+        let counters =
+            Counters::start(&vec!["golem.usage.duration_sec".into()]).expect("Creates counters");
         let counters = counters.counters.read().await;
         assert!(matches!(
             counters.first(),
@@ -152,14 +158,14 @@ mod tests {
 
     #[tokio::test]
     async fn zero_counter_error_test() {
-        let counters = Counters::from_counters(&vec![]).expect("Creates empty counters collection");
+        let counters = Counters::start(&vec![]).expect("Creates empty counters collection");
         let counters = counters.counters.read().await;
         assert!(counters.is_empty());
     }
 
     #[tokio::test]
     async fn overlapping_requests_counter_test() {
-        let counters = Counters::from_counters(&vec![
+        let counters = Counters::start(&vec![
             "golem.usage.duration_sec".into(),
             "ai-runtime.requests".into(),
             "golem.usage.gpu-sec".into(),
@@ -181,7 +187,7 @@ mod tests {
                     let response_monitor = requests_monitor.on_request().await;
                     // println!("Short request on step: {i}. Done.");
                     tokio::time::sleep(delay).await;
-                    response_monitor.on_response().await;
+                    response_monitor.on_response();
                     // println!("Short request response on step: {i}");
                 } else {
                     tokio::time::sleep(delay).await;
@@ -197,7 +203,7 @@ mod tests {
             let response_monitor = requests_monitor.on_request().await;
             tokio::time::sleep(delay * 2).await;
             // println!("Long request response.");
-            response_monitor.on_response().await;
+            response_monitor.on_response();
         });
 
         // checking counters
@@ -265,7 +271,7 @@ mod tests {
 
     #[tokio::test]
     async fn unhandled_response_event_test() {
-        let counters = Counters::from_counters(&vec![
+        let counters = Counters::start(&vec![
             "golem.usage.duration_sec".into(),
             "ai-runtime.requests".into(),
             "golem.usage.gpu-sec".into(),

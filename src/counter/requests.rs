@@ -1,3 +1,5 @@
+use chrono::{DateTime, Utc};
+
 use super::{Counter, RequestMonitoringCounter};
 
 #[derive(Debug, Default)]
@@ -12,9 +14,9 @@ impl Counter for RequestsCounter {
 }
 
 impl RequestMonitoringCounter for RequestsCounter {
-    fn on_request(&mut self) {
+    fn on_request(&mut self, _request_time: DateTime<Utc>) {
         self.count += 1;
     }
 
-    fn on_response(&mut self) {}
+    fn on_response(&mut self, _response_time: DateTime<Utc>) {}
 }

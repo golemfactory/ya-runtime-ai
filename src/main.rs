@@ -202,7 +202,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
 
     let agreement = AgreementDesc::load(agreement_path)?;
 
-    let counters = Counters::from_counters(&agreement.counters)?;
+    let counters = Counters::start(&agreement.counters)?;
 
     let ctx = ExeUnitContext {
         activity_id: activity_id.clone(),

@@ -10,34 +10,34 @@ pub(super) struct RequestsDurationCounter {
 }
 
 impl RequestsDurationCounter {
-    fn active_request_duration(&self) -> Duration {
+    fn active_request_duration(&self, response_time: DateTime<Utc>) -> Duration {
         if let Some(active_request_start_time) = self.first_active_request_start_time {
-            let now = Utc::now();
-            return now - active_request_start_time;
+            return response_time - active_request_start_time;
         }
+        //TODO log it
         Duration::zero()
     }
 }
 
 impl Counter for RequestsDurationCounter {
     fn count(&self) -> f64 {
-        let duration_so_far = self.duration + self.active_request_duration();
+        let duration_so_far = self.duration + self.active_request_duration(Utc::now());
         super::duration_to_secs(duration_so_far)
     }
 }
 
 impl RequestMonitoringCounter for RequestsDurationCounter {
-    fn on_request(&mut self) {
+    fn on_request(&mut self, request_time: DateTime<Utc>) {
         self.active_requests_count += 1;
         if self.first_active_request_start_time.is_none() {
-            self.first_active_request_start_time = Some(Utc::now());
+            self.first_active_request_start_time = Some(request_time);
         }
     }
 
-    fn on_response(&mut self) {
+    fn on_response(&mut self, response_time: DateTime<Utc>) {
         self.active_requests_count -= 1;
         if self.active_requests_count == 0 {
-            self.duration = self.duration + self.active_request_duration();
+            self.duration = self.duration + self.active_request_duration(response_time);
             self.first_active_request_start_time = None;
         }
     }
