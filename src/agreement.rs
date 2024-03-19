@@ -27,17 +27,6 @@ impl AgreementDesc {
 
         Ok(AgreementDesc { counters, model })
     }
-
-    pub fn resolve_counter(&self, counter_id: &str) -> Option<usize> {
-        self.counters
-            .iter()
-            .enumerate()
-            .find_map(|(idx, name)| if name == counter_id { Some(idx) } else { None })
-    }
-
-    pub fn clean_usage_vector(&self) -> Vec<f64> {
-        self.counters.iter().map(|_| 0f64).collect()
-    }
 }
 
 #[cfg(test)]
