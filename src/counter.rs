@@ -164,6 +164,17 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn unsupported_counter_test() {
+        let res = Counters::start(&vec![
+            "golem.usage.duration_sec".into(),
+            "unknown.timer.fail".into(),
+        ]);
+        assert!(matches!(res, Err(err) if err.to_string().contains("Unsupported counter")));
+        let res = Counters::start(&vec!["unknown.timer.fail".into()]);
+        assert!(matches!(res, Err(err) if err.to_string().contains("Unsupported counter")));
+    }
+
+    #[tokio::test]
     async fn overlapping_requests_counter_test() {
         let counters = Counters::start(&vec![
             "golem.usage.duration_sec".into(),
