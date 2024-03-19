@@ -14,7 +14,6 @@ impl RequestsDurationCounter {
         if let Some(active_request_start_time) = self.first_active_request_start_time {
             return response_time - active_request_start_time;
         }
-        //TODO log it
         Duration::zero()
     }
 }
