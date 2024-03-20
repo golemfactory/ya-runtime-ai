@@ -1,0 +1,68 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "offer-template",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=ya-runtime-ai",
+                    "--package=ya-runtime-ai"
+                ],
+                "filter": {
+                    "name": "ya-runtime-ai",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--runtime",
+                "dummy",
+                "offer-template"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'ya-runtime-ai'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=ya-runtime-ai",
+                    "--package=ya-runtime-ai"
+                ],
+                "filter": {
+                    "name": "ya-runtime-ai",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'runtime_config'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=runtime_config",
+                    "--package=ya-runtime-ai"
+                ],
+                "filter": {
+                    "name": "runtime_config",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
