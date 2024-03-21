@@ -1,43 +1,38 @@
 use serde::Serialize;
 
+#[serde(rename_all = "kebab-case")]
 #[derive(Clone, Debug, Serialize)]
 pub struct Gpu {
-    model: String,
-    cuda: Cuda,
-    clocks: Clocks,
-    memory: Memory,
+    pub model: String,
+    pub cuda: Cuda,
+    pub clocks: Clocks,
+    pub memory: Memory,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Cuda {
-    enabled: bool,
-    cores: u32,
-    version: String,
-    capability: Capability,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Capability {
-    major: u32,
-    minor: u32,
+    pub enabled: bool,
+    pub cores: u32,
+    pub version: String,
+    pub compute_capability: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Clocks {
-    #[serde(rename(deserialize = "graphics.mhz"))]
-    graphics_mhz: u32,
-    #[serde(rename(deserialize = "memory.mhz"))]
-    memory_mhz: u32,
-    #[serde(rename(deserialize = "sm.mhz"))]
-    sm_mhz: u32,
-    #[serde(rename(deserialize = "video.mhz"))]
-    video_mhz: u32,
+    #[serde(rename(serialize = "graphics.mhz"))]
+    pub graphics_mhz: u32,
+    #[serde(rename(serialize = "memory.mhz"))]
+    pub memory_mhz: u32,
+    #[serde(rename(serialize = "sm.mhz"))]
+    pub sm_mhz: u32,
+    #[serde(rename(serialize = "video.mhz"))]
+    pub video_mhz: u32,
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Memory {
-    #[serde(rename(deserialize = "bandwidth.gib"))]
-    bandwidth_gib: u32,
-    #[serde(rename(deserialize = "tatal.gib"))]
-    tatal_gib: u32
+    #[serde(rename(serialize = "bandwidth.gib"))]
+    pub bandwidth_gib: u32,
+    #[serde(rename(serialize = "tatal.gib"))]
+    pub total_gib: f32
 }
