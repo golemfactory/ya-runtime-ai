@@ -34,8 +34,9 @@ pub struct Clocks {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Memory {
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename(serialize = "bandwidth.gib"))]
-    pub bandwidth_gib: u32,
+    pub bandwidth_gib: Option<u32>,
     #[serde(rename(serialize = "total.gib"))]
     pub total_gib: f32,
 }

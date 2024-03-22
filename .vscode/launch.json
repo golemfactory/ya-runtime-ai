@@ -1,13 +1,10 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
             "type": "lldb",
             "request": "launch",
-            "name": "offer-template",
+            "name": "offer-template dummy",
             "cargo": {
                 "args": [
                     "build",
@@ -22,6 +19,28 @@
             "args": [
                 "--runtime",
                 "dummy",
+                "offer-template"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "offer-template automatic",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=ya-runtime-ai",
+                    "--package=ya-runtime-ai"
+                ],
+                "filter": {
+                    "name": "ya-runtime-ai",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--runtime",
+                "automatic",
                 "offer-template"
             ],
             "cwd": "${workspaceFolder}"

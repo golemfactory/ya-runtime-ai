@@ -98,13 +98,14 @@ fn clocks(dev: &Device) -> anyhow::Result<Clocks> {
 fn memory(dev: &Device) -> anyhow::Result<Memory> {
     let total_bytes = dev.memory_info()?.total;
     let total_gib = bytes_to_gib(total_bytes);
-    let bandwidth_gib = bandwidth_gib(dev)?;
     Ok(Memory {
-        bandwidth_gib,
+        bandwidth_gib: None,
         total_gib,
     })
 }
 
+/// Unused because of lack of `memTransferRatemax` property.
+#[allow(dead_code)]
 fn bandwidth_gib(dev: &Device) -> anyhow::Result<u32> {
     let memory_bus_width = dev.memory_bus_width()?;
     let supported_memory_clocks = dev.supported_memory_clocks()?;
