@@ -4,18 +4,18 @@ use nvml_wrapper::{enum_wrappers::device::Clock, Device, Nvml};
 
 pub mod model;
 
-pub struct GpuInfo {
+pub struct GpuDetection {
     nvml: Nvml,
 }
 
-impl GpuInfo {
+impl GpuDetection {
     pub fn init() -> anyhow::Result<Self> {
         let nvml = Nvml::init()?;
         Ok(Self { nvml })
     }
 
     /// `uuid` of GPU device. If not provided first available GPU device will be used.
-    pub fn info<S: AsRef<str>>(&self, uuid: Option<S>) -> anyhow::Result<Gpu> {
+    pub fn detect<S: AsRef<str>>(&self, uuid: Option<S>) -> anyhow::Result<Gpu> {
         if let Some(uuid) = uuid {
             let dev = self.nvml.device_by_uuid(uuid.as_ref()).with_context(|| {
                 format!("Failed to get GPU device with UUID: {}.", uuid.as_ref())

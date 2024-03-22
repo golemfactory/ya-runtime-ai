@@ -199,7 +199,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
             return Ok(());
         }
         Command::Test => {
-            // Test
+            offer_template::gpu_detection(&runtime_config)?;
             return Ok(());
         }
     };

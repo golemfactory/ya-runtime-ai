@@ -48,6 +48,50 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "test dummy",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=ya-runtime-ai",
+                    "--package=ya-runtime-ai"
+                ],
+                "filter": {
+                    "name": "ya-runtime-ai",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--runtime",
+                "dummy",
+                "test"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "test automatic",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=ya-runtime-ai",
+                    "--package=ya-runtime-ai"
+                ],
+                "filter": {
+                    "name": "ya-runtime-ai",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--runtime",
+                "automatic",
+                "test"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug unit tests in executable 'ya-runtime-ai'",
             "cargo": {
                 "args": [

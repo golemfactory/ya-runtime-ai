@@ -1350,7 +1350,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpu-info"
+name = "gpu-detection"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -3807,7 +3807,7 @@ dependencies = [
  "env_logger",
  "flexi_logger",
  "futures 0.3.30",
- "gpu-info",
+ "gpu-detection",
  "http 0.2.11",
  "humantime",
  "humantime-serde",
