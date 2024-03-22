@@ -8,19 +8,20 @@ fn runtime_config_as_text_ok() {
         .arg("automatic")
         .arg("--runtime-config")
         .arg(
-            "{ \
-            \"startup_script\": \"path/run.bat\", \
-            \"api_port\": 80, \
-            \"api_host\": \"domain.com\", \
-            \"api_shutdown_path\": \"/kill/me\", \
-            \"model_arg\": \"\", \
-            \"additional_args\": [\"--arg-one\", \"--arg-two\"], \
-            \"startup_timeout\": \"1s\", \
-            \"api_ping_delay\": \"100ms\", \
-            \"monitored_startup_msg\": \"Started\", \
-            \"monitored_model_failure_msg\": \"Failed\", \
-            \"monitored_msgs_w_trace_lvl\": [\"Unimportant\", \"Boring log\"] \
-        }",
+            r##"{
+            "startup_script": "path/run.bat",
+            "api_port": 80,
+            "api_host": "domain.com",
+            "api_shutdown_path": "/kill/me",
+            "model_arg": "",
+            "additional_args": ["--arg-one", "--arg-two"],
+            "startup_timeout": "1s",
+            "api_ping_delay": "100ms",
+            "monitored_startup_msg": "Started",
+            "monitored_model_failure_msg": "Failed",
+            "monitored_msgs_w_trace_lvl": ["Unimportant", "Boring log"],
+            "uses_gpu": false
+        }"##,
         )
         .arg("test")
         .assert()
@@ -33,7 +34,7 @@ fn config_parse_succ_single_field() {
     cmd.arg("--runtime")
         .arg("automatic")
         .arg("--runtime-config")
-        .arg("{ \"startup_script\": \"path/bin.exe\" }")
+        .arg(r##"{ "startup_script": "path/bin.exe", "uses_gpu": false }"##)
         .arg("test")
         .assert()
         .success();
@@ -45,7 +46,7 @@ fn config_parse_fail_field_bat_type() {
     cmd.arg("--runtime")
         .arg("automatic")
         .arg("--runtime-config")
-        .arg("{ \"startup_script\": 13 }")
+        .arg(r##"{ "startup_script": 13, "uses_gpu": false }"##)
         .arg("test")
         .assert()
         .failure();

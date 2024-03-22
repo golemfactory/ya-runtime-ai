@@ -30,7 +30,7 @@ impl RuntimeConfig for Config {
         None
     }
 
-    fn uses_gpu() -> bool {
+    fn uses_gpu(&self) -> bool {
         false
     }
 }
@@ -84,9 +84,5 @@ impl Runtime for Dummy {
     async fn wait(&mut self) -> std::io::Result<ExitStatus> {
         let mut child = self.child.lock().await;
         child.wait().await
-    }
-
-    fn requires_gpu() -> bool {
-        false
     }
 }

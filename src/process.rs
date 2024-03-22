@@ -40,13 +40,11 @@ pub(crate) trait Runtime: Sized {
     async fn stop(&mut self) -> anyhow::Result<()>;
 
     async fn wait(&mut self) -> std::io::Result<ExitStatus>;
-
-    fn requires_gpu() -> bool;
 }
 
 pub(crate) trait RuntimeConfig: DeserializeOwned + Default + Debug + Clone {
     fn gpu_uuid(&self) -> Option<String>;
-    fn uses_gpu() -> bool;
+    fn uses_gpu(&self) -> bool;
 }
 
 #[derive(Clone)]

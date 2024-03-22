@@ -10,9 +10,8 @@ struct OfferTemplate {
     properties: BTreeMap<String, serde_json::Value>,
     constraints: String,
 }
-
 pub(crate) fn gpu_detection<CONFIG: RuntimeConfig>(config: &CONFIG) -> anyhow::Result<Option<Gpu>> {
-    if CONFIG::uses_gpu() {
+    if config.uses_gpu() {
         let gpu_detection = gpu_detection::GpuDetection::init()?;
         let gpu = gpu_detection.detect(config.gpu_uuid())?;
         return Ok(Some(gpu));

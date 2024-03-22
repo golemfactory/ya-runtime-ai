@@ -33,6 +33,9 @@ pub(crate) struct Config {
     pub monitored_msgs_w_trace_lvl: Vec<String>,
 
     pub gpu_uuid: Option<String>,
+
+    // Property for testing purposes
+    pub uses_gpu: bool,
 }
 
 impl RuntimeConfig for Config {
@@ -40,8 +43,8 @@ impl RuntimeConfig for Config {
         self.gpu_uuid.clone()
     }
 
-    fn uses_gpu() -> bool {
-        true
+    fn uses_gpu(&self) -> bool {
+        self.uses_gpu
     }
 }
 
@@ -67,6 +70,7 @@ impl Default for Config {
                 "\"GET / HTTP/1.1\" 404 Not Found".into(),
             ],
             gpu_uuid: None,
+            uses_gpu: true,
         }
     }
 }
