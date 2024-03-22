@@ -1,7 +1,7 @@
 use serde::Serialize;
 
-#[serde(rename_all = "kebab-case")]
 #[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Gpu {
     pub model: String,
     pub cuda: Cuda,
@@ -10,6 +10,7 @@ pub struct Gpu {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Cuda {
     pub enabled: bool,
     pub cores: u32,
@@ -18,6 +19,7 @@ pub struct Cuda {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Clocks {
     #[serde(rename(serialize = "graphics.mhz"))]
     pub graphics_mhz: u32,
@@ -30,9 +32,10 @@ pub struct Clocks {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Memory {
     #[serde(rename(serialize = "bandwidth.gib"))]
     pub bandwidth_gib: u32,
-    #[serde(rename(serialize = "tatal.gib"))]
-    pub total_gib: f32
+    #[serde(rename(serialize = "total.gib"))]
+    pub total_gib: f32,
 }

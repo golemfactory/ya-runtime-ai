@@ -8,7 +8,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 
-use super::Runtime;
+use super::{Runtime, RuntimeConfig};
 
 #[derive(Clone)]
 pub struct Dummy {
@@ -23,6 +23,16 @@ fn dummy_filename() -> String {
 pub(crate) struct Config {
     #[allow(dead_code)]
     pub dummy_arg: Option<String>,
+}
+
+impl RuntimeConfig for Config {
+    fn gpu_uuid(&self) -> Option<String> {
+        None
+    }
+
+    fn uses_gpu() -> bool {
+        false
+    }
 }
 
 #[async_trait]
@@ -74,5 +84,9 @@ impl Runtime for Dummy {
     async fn wait(&mut self) -> std::io::Result<ExitStatus> {
         let mut child = self.child.lock().await;
         child.wait().await
+    }
+
+    fn requires_gpu() -> bool {
+        false
     }
 }

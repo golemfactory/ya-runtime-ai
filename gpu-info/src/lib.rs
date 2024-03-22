@@ -1,9 +1,6 @@
 use anyhow::{bail, Context};
 use model::{Clocks, Cuda, Gpu, Memory};
-use nvml_wrapper::{
-    bitmasks::InitFlags, enum_wrappers::device::Clock, structs::device::CudaComputeCapability,
-    Device, Nvml,
-};
+use nvml_wrapper::{enum_wrappers::device::Clock, Device, Nvml};
 
 pub mod model;
 
@@ -13,17 +10,16 @@ pub struct GpuInfo {
 
 impl GpuInfo {
     pub fn init() -> anyhow::Result<Self> {
-        let nvml = Nvml::builder().flags(InitFlags::NO_ATTACH).init()?;
-        return Ok(Self { nvml });
+        let nvml = Nvml::init()?;
+        Ok(Self { nvml })
     }
 
     /// `uuid` of GPU device. If not provided first available GPU device will be used.
-    pub fn info<S: AsRef<str>>(&self, uuid: Option<&str>) -> anyhow::Result<Gpu> {
+    pub fn info<S: AsRef<str>>(&self, uuid: Option<S>) -> anyhow::Result<Gpu> {
         if let Some(uuid) = uuid {
-            let dev = self
-                .nvml
-                .device_by_uuid(uuid)
-                .with_context(|| format!("Failed to get GPU device with UUID: {uuid}."))?;
+            let dev = self.nvml.device_by_uuid(uuid.as_ref()).with_context(|| {
+                format!("Failed to get GPU device with UUID: {}.", uuid.as_ref())
+            })?;
             return self.device_info(dev);
         };
 
@@ -87,10 +83,10 @@ fn compute_capability(dev: &Device) -> anyhow::Result<String> {
 }
 
 fn clocks(dev: &Device) -> anyhow::Result<Clocks> {
-    let graphics_mhz = hz_to_mhz(dev.clock_info(Clock::Graphics)?);
-    let memory_mhz = hz_to_mhz(dev.clock_info(Clock::Memory)?);
-    let sm_mhz = hz_to_mhz(dev.clock_info(Clock::SM)?);
-    let video_mhz = hz_to_mhz(dev.clock_info(Clock::Video)?);
+    let graphics_mhz = dev.max_clock_info(Clock::Graphics)?;
+    let memory_mhz = dev.max_clock_info(Clock::Memory)?;
+    let sm_mhz = dev.max_clock_info(Clock::SM)?;
+    let video_mhz = dev.max_clock_info(Clock::Video)?;
     Ok(Clocks {
         graphics_mhz,
         memory_mhz,
@@ -122,16 +118,4 @@ fn bandwidth_gib(dev: &Device) -> anyhow::Result<u32> {
 
 fn bytes_to_gib(memory: u64) -> f32 {
     (memory as f64 / 1024.0 / 1024.0 / 1024.0) as f32
-}
-
-fn hz_to_mhz(hz: u32) -> u32 {
-    hz / 1000_000
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {}
 }

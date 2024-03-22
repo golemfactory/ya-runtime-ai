@@ -3807,6 +3807,7 @@ dependencies = [
  "env_logger",
  "flexi_logger",
  "futures 0.3.30",
+ "gpu-info",
  "http 0.2.11",
  "humantime",
  "humantime-serde",

@@ -18,6 +18,7 @@ ya-service-bus = "0.7.1"
 ya-client-model = "0.6.0"
 ya-agreement-utils = "0.5"
 ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "fb9a89b11c815b5b6b664ca6c8b1151524420aa3" }
+gpu-info = { path = "gpu-info" }
 
 actix = "0.13"
 actix-rt = "2"

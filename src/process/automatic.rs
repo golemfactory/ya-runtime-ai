@@ -83,6 +83,10 @@ impl Runtime for Automatic {
         log::debug!("Automatic process has stopped");
         res
     }
+
+    fn requires_gpu() -> bool {
+        true
+    }
 }
 
 fn build_cmd(model: Option<PathBuf>, config: &Config) -> anyhow::Result<Command> {
