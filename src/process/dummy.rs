@@ -8,7 +8,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 
-use super::Runtime;
+use super::{Runtime, RuntimeConfig};
 
 #[derive(Clone)]
 pub struct Dummy {
@@ -23,6 +23,12 @@ fn dummy_filename() -> String {
 pub(crate) struct Config {
     #[allow(dead_code)]
     pub dummy_arg: Option<String>,
+}
+
+impl RuntimeConfig for Config {
+    fn gpu_uuid(&self) -> Option<String> {
+        None
+    }
 }
 
 #[async_trait]
