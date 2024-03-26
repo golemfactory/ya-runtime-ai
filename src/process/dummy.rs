@@ -29,10 +29,6 @@ impl RuntimeConfig for Config {
     fn gpu_uuid(&self) -> Option<String> {
         None
     }
-
-    fn uses_gpu(&self) -> bool {
-        false
-    }
 }
 
 #[async_trait]

@@ -44,7 +44,6 @@ pub(crate) trait Runtime: Sized {
 
 pub(crate) trait RuntimeConfig: DeserializeOwned + Default + Debug + Clone {
     fn gpu_uuid(&self) -> Option<String>;
-    fn uses_gpu(&self) -> bool;
 }
 
 #[derive(Clone)]

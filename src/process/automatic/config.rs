@@ -33,18 +33,11 @@ pub(crate) struct Config {
     pub monitored_msgs_w_trace_lvl: Vec<String>,
 
     pub gpu_uuid: Option<String>,
-
-    // Property for testing purposes
-    pub uses_gpu: bool,
 }
 
 impl RuntimeConfig for Config {
     fn gpu_uuid(&self) -> Option<String> {
         self.gpu_uuid.clone()
-    }
-
-    fn uses_gpu(&self) -> bool {
-        self.uses_gpu
     }
 }
 
@@ -70,7 +63,21 @@ impl Default for Config {
                 "\"GET / HTTP/1.1\" 404 Not Found".into(),
             ],
             gpu_uuid: None,
-            uses_gpu: true,
         }
+    }
+}
+
+#[cfg(test)]
+mod config_tests {
+    use std::{fs, path::PathBuf};
+
+    use super::Config;
+
+    #[test]
+    fn config_test() {
+        let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("tests/resources/runtime_config.json");
+        let config = fs::read_to_string(path).unwrap();
+        serde_json::from_str::<Config>(&config).expect("Can parse config");
     }
 }
