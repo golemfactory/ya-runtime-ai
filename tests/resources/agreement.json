@@ -5,15 +5,13 @@
     "demandId": "e5877b5ffa204aa882067613dfe1e866-7b06e1ce642491984330d4c114e6c3e7be9f5371feb00e48f601335992328431",
     "properties": {
       "golem": {
-        "!exp": {
-          "ai": {
-            "v1": {
-              "srv": {
-                "comp": {
-                  "ai": {
-                    "model": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors?download=true",
-                    "model-format": "safetensors"
-                  }
+        "ai": {
+          "v1": {
+            "srv": {
+              "comp": {
+                "ai": {
+                  "model": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors?download=true",
+                  "model-format": "safetensors"
                 }
               }
             }
