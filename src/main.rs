@@ -225,10 +225,15 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
 
     let mut counters = MetricsServiceBuilder::new(agreement.counters.clone(), Some(10000));
     counters
-        .with_metric(TimeMetric::ID, Box::new(TimeMetric::default()))
-        .with_metric("ai-runtime.requests", Box::new(gsb_proxy.requests_counter()))
-        // .with_metric("golem.usage.gpu-sec",  gsb_proxy.requests_duration_counter());
-    ;
+        .with_metric(TimeMetric::ID, Box::<TimeMetric>::default())
+        .with_metric(
+            "ai-runtime.requests",
+            Box::new(gsb_proxy.requests_counter()),
+        )
+        .with_metric(
+            "golem.usage.gpu-sec",
+            Box::new(gsb_proxy.requests_duration_counter()),
+        );
     let metrics = counters.build().start();
 
     let ctx = ExeUnitContext {
