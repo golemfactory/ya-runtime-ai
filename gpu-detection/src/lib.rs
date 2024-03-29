@@ -1,7 +1,7 @@
 use anyhow::{bail, Context};
 use model::{Clocks, Cuda, Gpu, Memory};
-use nvml_wrapper::{enum_wrappers::device::Clock, Device, Nvml};
 use nvml_wrapper::error::NvmlError;
+use nvml_wrapper::{enum_wrappers::device::Clock, Device, Nvml};
 use thiserror::Error;
 
 pub mod model;
@@ -11,7 +11,7 @@ pub enum GpuDetectionError {
     #[error("a libloading error occurred: {0}")]
     LibloadingError(#[from] libloading::Error),
     #[error("an unknown error occurred: {0}")]
-    Unknown(String)
+    Unknown(String),
 }
 
 pub struct GpuDetection {
@@ -24,11 +24,11 @@ impl GpuDetection {
             Ok(nvlm) => nvlm,
             Err(NvmlError::LibloadingError(e)) => {
                 log::error!("GpuDetection library loading failed: {}", e);
-                return Err(GpuDetectionError::LibloadingError(e))
-            },
+                return Err(GpuDetectionError::LibloadingError(e));
+            }
             Err(e) => {
                 log::error!("GpuDetection init failed: {}", e);
-                return Err(GpuDetectionError::Unknown(e.to_string()))
+                return Err(GpuDetectionError::Unknown(e.to_string()));
             }
         };
         Ok(Self { nvml })
