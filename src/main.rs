@@ -10,7 +10,6 @@ use actix::prelude::*;
 use anyhow::Context;
 use chrono::Utc;
 use clap::Parser;
-use counter::Counters;
 use futures::prelude::*;
 use process::Runtime;
 use tokio::select;
@@ -20,6 +19,10 @@ use ya_client_model::activity::ExeScriptCommand;
 use ya_client_model::activity::{ActivityUsage, CommandResult, ExeScriptCommandResult};
 use ya_core_model::activity;
 use ya_core_model::activity::RpcMessageError;
+use ya_counters::counters::TimeMetric;
+use ya_counters::error::MetricError;
+use ya_counters::message::GetMetrics;
+use ya_counters::service::{MetricsService, MetricsServiceBuilder};
 use ya_gsb_http_proxy::gsb_to_http::GsbToHttpProxy;
 use ya_gsb_http_proxy::message::GsbHttpCallMessage;
 use ya_service_bus::typed as gsb;
@@ -33,7 +36,6 @@ use crate::signal::SignalMonitor;
 
 mod agreement;
 mod cli;
-mod counter;
 mod logger;
 mod offer_template;
 mod process;
@@ -58,28 +60,45 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
     process: ProcessController<T>,
-    counters: Counters,
+    metrics: Addr<MetricsService>,
 ) -> anyhow::Result<()> {
     let report_service = gsb::service(report_url);
 
     while let Some(()) = process.report() {
-        let current_usage = counters.current_usage().await;
-        let timestamp = Utc::now().timestamp();
-        match report_service
-            .call(activity::local::SetUsage {
-                activity_id: activity_id.to_string(),
-                usage: ActivityUsage {
-                    current_usage,
-                    timestamp,
+        // make it a function
+        match metrics.send(GetMetrics).await {
+            Ok(resp) => match resp {
+                Ok(current_usage) => {
+                    let timestamp = Utc::now().timestamp();
+                    match report_service
+                        .call(activity::local::SetUsage {
+                            activity_id: activity_id.to_string(),
+                            usage: ActivityUsage {
+                                current_usage: Some(current_usage),
+                                timestamp,
+                            },
+                            timeout: None,
+                        })
+                        .await
+                    {
+                        Ok(Ok(())) => log::debug!("Successfully sent activity usage message"),
+                        Ok(Err(rpc_message_error)) => {
+                            log::error!("rpcMessageError : {:?}", rpc_message_error)
+                        }
+                        Err(err) => log::error!("other error : {:?}", err),
+                    }
+                }
+                Err(err) => match err {
+                    MetricError::UsageLimitExceeded(info) => {
+                        log::warn!("Usage limit exceeded: {}", info);
+                        // TODO State::Terminated
+                    }
+                    error => log::warn!("Unable to retrieve metrics: {:?}", error),
                 },
-                timeout: None,
-            })
-            .await
-        {
-            Ok(Ok(())) => log::debug!("Successfully sent activity usage message"),
-            Ok(Err(rpc_message_error)) => log::error!("rpcMessageError : {:?}", rpc_message_error),
-            Err(err) => log::error!("other error : {:?}", err),
+            },
+            Err(e) => log::warn!("Unable to report activity usage: {:?}", e),
         }
+        //
 
         select! {
             _ = tokio::time::sleep(Duration::from_secs(1)) => {},
@@ -202,7 +221,15 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
 
     let agreement = AgreementDesc::load(agreement_path)?;
 
-    let counters = Counters::start(&agreement.counters)?;
+    let mut gsb_proxy = GsbToHttpProxy::new("http://localhost:7861/".into());
+
+    let mut counters = MetricsServiceBuilder::new(agreement.counters.clone(), Some(10000));
+    counters
+        .with_metric(TimeMetric::ID, Box::new(TimeMetric::default()))
+        .with_metric("ai-runtime.requests", Box::new(gsb_proxy.requests_counter()))
+        // .with_metric("golem.usage.gpu-sec",  gsb_proxy.requests_duration_counter());
+    ;
+    let metrics = counters.build().start();
 
     let ctx = ExeUnitContext {
         activity_id: activity_id.clone(),
@@ -223,7 +250,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         report_url,
         activity_id,
         ctx.process_controller.clone(),
-        counters.clone(),
+        metrics.clone(),
     );
 
     #[cfg(target_os = "windows")]
@@ -402,14 +429,8 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
             }
         });
 
-        let counters = counters.clone();
         gsb::bind_stream(&exe_unit_url, move |message: GsbHttpCallMessage| {
-            let requests_monitor = counters.requests_monitor();
-            let mut proxy = GsbToHttpProxy {
-                base_url: "http://localhost:7861/".to_string(),
-                requests_monitor,
-            };
-            let stream = proxy.pass(message);
+            let stream = gsb_proxy.pass(message);
             Box::pin(stream.map(Ok))
         });
     };

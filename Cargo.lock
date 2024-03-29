@@ -445,16 +445,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 
 [[package]]
-name = "assert-json-diff"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47e4f2b81832e72834d7518d8487a0396a28cc408186a2e8854c0f98011faf12"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "assert_cmd"
 version = "2.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1015,16 +1005,6 @@ name = "colorchoice"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
-
-[[package]]
-name = "colored"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbf2150cce219b664a8a70df7a1f933836724b503f8a413af9365b4dcc4d90b8"
-dependencies = [
- "lazy_static",
- "windows-sys 0.48.0",
-]
 
 [[package]]
 name = "const-oid"
@@ -2690,7 +2670,7 @@ dependencies = [
  "hdrhistogram",
  "metrics-core",
  "metrics-util",
- "serde_yaml",
+ "serde_yaml 0.8.26",
 ]
 
 [[package]]
@@ -2773,25 +2753,6 @@ dependencies = [
  "log",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "mockito"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2f6e023aa5bdf392aa06c78e4a4e6d498baab5138d0c993503350ebbc37bf1e"
-dependencies = [
- "assert-json-diff",
- "colored",
- "futures-core",
- "hyper",
- "log",
- "rand 0.8.5",
- "regex",
- "serde_json",
- "serde_urlencoded",
- "similar",
- "tokio",
 ]
 
 [[package]]
@@ -4103,6 +4064,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_yaml"
+version = "0.9.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1bf28c79a99f70ee1f1d83d10c875d2e70618417fda01ad1785e027579d9d38"
+dependencies = [
+ "indexmap 2.1.0",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
+]
+
+[[package]]
 name = "sha1"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4171,12 +4145,6 @@ name = "simdutf8"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27f6278552951f1f2b8cf9da965d10969b2efdea95a6ec47987ab46edfe263a"
-
-[[package]]
-name = "similar"
-version = "2.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32fea41aca09ee824cc9724996433064c89f7777e60762749a4170a14abbfa21"
 
 [[package]]
 name = "sized-chunks"
@@ -5098,6 +5066,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39ec24b3121d976906ece63c9daad25b85969647682eee313cb5779fdd69e14e"
 
 [[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
+
+[[package]]
 name = "untrusted"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5631,9 +5605,22 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yaml 0.8.26",
  "thiserror",
  "ya-client-model 0.5.0",
+]
+
+[[package]]
+name = "ya-agreement-utils"
+version = "0.6.0"
+dependencies = [
+ "chrono",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml 0.9.30",
+ "thiserror",
+ "ya-client-model 0.6.0",
 ]
 
 [[package]]
@@ -5704,10 +5691,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "ya-counters"
+version = "0.1.0"
+dependencies = [
+ "actix",
+ "actix-rt",
+ "anyhow",
+ "chrono",
+ "log",
+ "serde",
+ "serde_json",
+ "serde_yaml 0.9.30",
+ "thiserror",
+ "tokio",
+ "ya-agreement-utils 0.6.0",
+]
+
+[[package]]
 name = "ya-gsb-http-proxy"
 version = "0.1.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=b3f1e8238f26b224729c578eae6c29098d8800d7#b3f1e8238f26b224729c578eae6c29098d8800d7"
 dependencies = [
+ "actix",
  "actix-http",
  "actix-web",
  "async-stream",
@@ -5716,13 +5720,13 @@ dependencies = [
  "futures-core",
  "http 1.1.0",
  "log",
- "mockito",
  "reqwest",
  "serde",
  "serde_derive",
  "serde_json",
  "thiserror",
  "tokio",
+ "ya-counters",
  "ya-service-bus",
 ]
 
@@ -5766,9 +5770,10 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "winapi",
- "ya-agreement-utils",
+ "ya-agreement-utils 0.5.0",
  "ya-client-model 0.6.0",
  "ya-core-model",
+ "ya-counters",
  "ya-gsb-http-proxy",
  "ya-runtime-api",
  "ya-service-bus",

@@ -1,3 +1,4 @@
+/*
 mod combined;
 mod duration;
 mod requests;
@@ -16,6 +17,8 @@ use self::{
 };
 
 type SharedCounters = Arc<RwLock<Vec<SupportedCounter>>>;
+
+
 
 #[derive(Clone, Debug)]
 pub struct Counters {
@@ -339,3 +342,4 @@ mod tests {
         (x * y).floor() / y
     }
 }
+*/

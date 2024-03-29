@@ -17,6 +17,7 @@ ya-service-bus = "0.7.1"
 ya-client-model = "0.6.0"
 ya-agreement-utils = "0.5"
 ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "b3f1e8238f26b224729c578eae6c29098d8800d7" }
+ya-counters = { path = "../yagna/exe-unit/components/counters" }
 
 actix = "0.13"
 actix-rt = "2"
@@ -37,7 +38,8 @@ flexi_logger = { version = "0.28", features = ["colors"] }
 regex = "1"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 async-stream = "0.3.5"
-ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "b3f1e8238f26b224729c578eae6c29098d8800d7" }
+# ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "b3f1e8238f26b224729c578eae6c29098d8800d7" }
+ya-gsb-http-proxy = { path = "../yagna/exe-unit/components/gsb-http-proxy" }
 http = "1.1.0"
 bytes = "1.5.0"
 humantime = "2.1"
