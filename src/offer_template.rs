@@ -1,6 +1,7 @@
 use crate::process::RuntimeConfig;
 use gpu_detection::model::Gpu;
 
+use gpu_detection::GpuDetectionError;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -11,9 +12,14 @@ struct OfferTemplate {
     constraints: String,
 }
 pub(crate) fn gpu_detection<CONFIG: RuntimeConfig>(config: &CONFIG) -> anyhow::Result<Option<Gpu>> {
-    let gpu_detection = gpu_detection::GpuDetection::init()?;
-    let gpu = gpu_detection.detect(config.gpu_uuid())?;
-    Ok(Some(gpu))
+    match gpu_detection::GpuDetection::init() {
+        Ok(gpu_detection) => {
+            let gpu = gpu_detection.detect(config.gpu_uuid())?;
+            Ok(Some(gpu))
+        }
+        Err(GpuDetectionError::LibloadingError(_)) => Ok(None),
+        Err(e) => Err(e.into()),
+    }
 }
 
 pub(crate) fn template<CONFIG: RuntimeConfig>(

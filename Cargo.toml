@@ -44,6 +44,7 @@ http = "1.1"
 bytes = "1.5"
 humantime = "2.1"
 humantime-serde = "1.1"
+thiserror = "1.0.58"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["jobapi2", "processthreadsapi", "handleapi"] }
