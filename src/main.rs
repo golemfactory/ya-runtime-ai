@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use actix::prelude::*;
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use chrono::Utc;
 use clap::Parser;
 use futures::prelude::*;
@@ -199,12 +199,8 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
             return Ok(());
         }
         Command::Test => {
-            match offer_template::gpu_detection(&runtime_config)
-            {
-                Ok(Some(_)) => return Ok(()),
-                Ok(None) => return Err(anyhow!("Gpu not available")),
-                Err(e) => return Err(anyhow!(e)),
-            }
+            offer_template::gpu_detection(&runtime_config)?;
+            return Ok(());
         }
     };
 
