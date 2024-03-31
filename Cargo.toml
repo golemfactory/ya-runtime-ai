@@ -11,13 +11,13 @@ members = [
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "b3f1e8238f26b224729c578eae6c29098d8800d7", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "b3f1e8238f26b224729c578eae6c29098d8800d7" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "0e22f60cc8fe5d032cea7db6d5230320e8b2947f", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "0e22f60cc8fe5d032cea7db6d5230320e8b2947f" }
 ya-service-bus = "0.7.1"
 ya-client-model = "0.6.0"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "b3f1e8238f26b224729c578eae6c29098d8800d7" }
-ya-counters = { path = "../yagna/exe-unit/components/counters" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "0e22f60cc8fe5d032cea7db6d5230320e8b2947f" }
+ya-counters = { git = "https://github.com/golemfactory/yagna.git", rev = "0e22f60cc8fe5d032cea7db6d5230320e8b2947f" }
 
 actix = "0.13"
 actix-rt = "2"
@@ -30,7 +30,7 @@ dotenv = "0.15"
 anyhow = "1.0"
 env_logger = "0.11"
 yansi = "1.0"
-chrono = "0.4"
+chrono = "0.4.34"
 tokio = { version = "1.32", features = ["macros", "signal"] }
 tokio-stream = { version = "0.1.14", features = ["io-util"] }
 futures = "0.3"
@@ -38,8 +38,7 @@ flexi_logger = { version = "0.28", features = ["colors"] }
 regex = "1"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 async-stream = "0.3.5"
-# ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "b3f1e8238f26b224729c578eae6c29098d8800d7" }
-ya-gsb-http-proxy = { path = "../yagna/exe-unit/components/gsb-http-proxy" }
+ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "0e22f60cc8fe5d032cea7db6d5230320e8b2947f" }
 http = "1.1.0"
 bytes = "1.5.0"
 humantime = "2.1"
@@ -54,4 +53,4 @@ assert_cmd = "2.0"
 predicates = "3.1"
 
 [patch.crates-io]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "b3f1e8238f26b224729c578eae6c29098d8800d7" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "0e22f60cc8fe5d032cea7db6d5230320e8b2947f" }

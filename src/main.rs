@@ -14,15 +14,16 @@ use futures::prelude::*;
 use process::Runtime;
 use tokio::select;
 use tokio::sync::{mpsc, mpsc::Receiver, mpsc::Sender};
+
 use ya_client_model::activity::activity_state::*;
 use ya_client_model::activity::ExeScriptCommand;
 use ya_client_model::activity::{ActivityUsage, CommandResult, ExeScriptCommandResult};
 use ya_core_model::activity;
 use ya_core_model::activity::RpcMessageError;
-use ya_counters::counters::TimeMetric;
-use ya_counters::error::MetricError;
-use ya_counters::message::GetMetrics;
-use ya_counters::service::{MetricsService, MetricsServiceBuilder};
+use ya_counters::error::CounterError;
+use ya_counters::message::GetCounters;
+use ya_counters::service::{CountersService, CountersServiceBuilder};
+use ya_counters::TimeCounter;
 use ya_gsb_http_proxy::gsb_to_http::GsbToHttpProxy;
 use ya_gsb_http_proxy::message::GsbHttpCallMessage;
 use ya_service_bus::typed as gsb;
@@ -60,13 +61,13 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
     process: ProcessController<T>,
-    metrics: Addr<MetricsService>,
+    counters: Addr<CountersService>,
 ) -> anyhow::Result<()> {
     let report_service = gsb::service(report_url);
 
     while let Some(()) = process.report() {
         // make it a function
-        match metrics.send(GetMetrics).await {
+        match counters.send(GetCounters).await {
             Ok(resp) => match resp {
                 Ok(current_usage) => {
                     let timestamp = Utc::now().timestamp();
@@ -89,11 +90,11 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
                     }
                 }
                 Err(err) => match err {
-                    MetricError::UsageLimitExceeded(info) => {
+                    CounterError::UsageLimitExceeded(info) => {
                         log::warn!("Usage limit exceeded: {}", info);
                         // TODO State::Terminated
                     }
-                    error => log::warn!("Unable to retrieve metrics: {:?}", error),
+                    error => log::warn!("Unable to retrieve counters: {:?}", error),
                 },
             },
             Err(e) => log::warn!("Unable to report activity usage: {:?}", e),
@@ -223,18 +224,18 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
 
     let mut gsb_proxy = GsbToHttpProxy::new("http://localhost:7861/".into());
 
-    let mut counters = MetricsServiceBuilder::new(agreement.counters.clone(), Some(10000));
+    let mut counters = CountersServiceBuilder::new(agreement.counters.clone(), Some(10000));
     counters
-        .with_metric(TimeMetric::ID, Box::<TimeMetric>::default())
-        .with_metric(
+        .with_counter(TimeCounter::ID, Box::<TimeCounter>::default())
+        .with_counter(
             "ai-runtime.requests",
             Box::new(gsb_proxy.requests_counter()),
         )
-        .with_metric(
+        .with_counter(
             "golem.usage.gpu-sec",
             Box::new(gsb_proxy.requests_duration_counter()),
         );
-    let metrics = counters.build().start();
+    let counters = counters.build().start();
 
     let ctx = ExeUnitContext {
         activity_id: activity_id.clone(),
@@ -255,7 +256,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         report_url,
         activity_id,
         ctx.process_controller.clone(),
-        metrics.clone(),
+        counters.clone(),
     );
 
     #[cfg(target_os = "windows")]
