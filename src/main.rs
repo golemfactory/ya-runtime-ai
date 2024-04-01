@@ -192,7 +192,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
 ) -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
-    let runtime_config = Box::pin(RUNTIME::parse_config(&cli.runtime_config)?);
+    let runtime_config = RUNTIME::parse_config(&cli.runtime_config)?;
     log::info!("Runtime config: {runtime_config:?}");
 
     let (exe_unit_url, report_url, activity_id, args) = match &cli.command {
@@ -208,15 +208,17 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
             args,
         ),
         Command::OfferTemplate => {
-            let template = offer_template::template()?;
+            let template = offer_template::template(&runtime_config)?;
             io::stdout().write_all(template.as_ref())?;
             return Ok(());
         }
         Command::Test => {
-            // Test
+            offer_template::gpu_detection(&runtime_config)?;
             return Ok(());
         }
     };
+
+    let runtime_config = Box::pin(runtime_config);
 
     let agreement_path = args.agreement.clone();
 

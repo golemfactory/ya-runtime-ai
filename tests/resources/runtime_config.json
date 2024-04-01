@@ -15,5 +15,6 @@
     "monitored_msgs_w_trace_lvl": [
         "Unimportant",
         "Boring log"
-    ]
+    ],
+    "uses_gpu": false
 }
