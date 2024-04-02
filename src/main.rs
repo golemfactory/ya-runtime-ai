@@ -148,7 +148,7 @@ async fn set_terminate_state_msg(
 }
 
 #[actix_rt::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
     let panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |e| {
         log::error!("AI Runtime panic: {e}");
@@ -159,14 +159,19 @@ async fn main() -> anyhow::Result<()> {
         start_logger().expect("Failed to start logging");
         log::warn!("Using fallback logging due to an error: {:?}", error);
     };
-    log::debug!("Raw CLI args: {:?}", std::env::args_os());
-    let cli = match Cli::try_parse() {
-        Ok(cli) => cli,
-        Err(err) => {
-            log::error!("Failed to parse CLI: {}", err);
-            err.exit();
+
+    std::process::exit(match try_main().await {
+        Ok(_) => 0,
+        Err(error) => {
+            log::error!("{}", error);
+            1
         }
-    };
+    })
+}
+
+async fn try_main() -> anyhow::Result<()> {
+    log::debug!("Raw CLI args: {:?}", std::env::args_os());
+    let cli = Cli::try_parse()?;
 
     let (signal_sender, signal_receiver) = mpsc::channel::<Signal>(1);
 
