@@ -9,13 +9,6 @@ use super::Runtime;
 use crate::process::automatic::monitor::OutputMonitor;
 use anyhow::Context;
 use async_trait::async_trait;
-
-use std::pin::Pin;
-use std::{
-    path::PathBuf,
-    process::{ExitStatus, Stdio},
-    sync::Arc,
-};
 use tokio::{
     io::AsyncBufReadExt,
     io::BufReader,
@@ -24,6 +17,13 @@ use tokio::{
     time::timeout,
 };
 use tokio_stream::{wrappers::LinesStream, StreamExt};
+
+use std::pin::Pin;
+use std::{
+    path::PathBuf,
+    process::{ExitStatus, Stdio},
+    sync::Arc,
+};
 
 #[derive(Clone)]
 pub struct Automatic {

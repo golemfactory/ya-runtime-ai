@@ -11,18 +11,22 @@ use anyhow::Context;
 use chrono::Utc;
 use clap::Parser;
 use futures::prelude::*;
-use ya_gsb_http_proxy::gsb_to_http::GsbToHttpProxy;
-use ya_gsb_http_proxy::message::GsbHttpCallMessage;
-
 use process::Runtime;
 use tokio::select;
 use tokio::sync::{mpsc, mpsc::Receiver, mpsc::Sender};
+
 use ya_client_model::activity::activity_state::*;
 use ya_client_model::activity::ExeScriptCommand;
 use ya_client_model::activity::{ActivityUsage, CommandResult, ExeScriptCommandResult};
 use ya_core_model::activity;
 use ya_core_model::activity::RpcMessageError;
-use ya_service_bus::typed as gsb;
+use ya_counters::error::CounterError;
+use ya_counters::message::GetCounters;
+use ya_counters::service::{CountersService, CountersServiceBuilder};
+use ya_counters::TimeCounter;
+use ya_gsb_http_proxy::gsb_to_http::GsbToHttpProxy;
+use ya_gsb_http_proxy::message::GsbHttpCallMessage;
+use ya_service_bus::typed::{self as gsb, Endpoint};
 use ya_transfer::transfer::{DeployImage, Shutdown, TransferService, TransferServiceContext};
 
 use crate::agreement::AgreementDesc;
@@ -57,51 +61,39 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
     report_url: &str,
     activity_id: &str,
     process: ProcessController<T>,
-    agreement: AgreementDesc,
+    counters: Addr<CountersService>,
 ) -> anyhow::Result<()> {
     let report_service = gsb::service(report_url);
-    let start = Utc::now();
-    let mut current_usage = agreement.clean_usage_vector();
-    let duration_idx = agreement.resolve_counter("golem.usage.duration_sec");
 
     while let Some(()) = process.report() {
-        let now = Utc::now();
-        let duration = now - start;
-
-        if let Some(idx) = duration_idx {
-            current_usage[idx] = duration.to_std()?.as_secs_f64();
-        }
-        match report_service
-            .call(activity::local::SetUsage {
-                activity_id: activity_id.to_string(),
-                usage: ActivityUsage {
-                    current_usage: Some(current_usage.clone()),
-                    timestamp: now.timestamp(),
+        match counters.send(GetCounters).await {
+            Ok(resp) => match resp {
+                Ok(current_usage) => {
+                    set_usage_msg(&report_service, activity_id, current_usage).await
+                }
+                Err(err) => match err {
+                    CounterError::UsageLimitExceeded(info) => {
+                        set_terminate_state_msg(
+                            &report_service,
+                            activity_id,
+                            Some(format!("Usage limit exceeded: {}", info)),
+                            None,
+                        )
+                        .await
+                    }
+                    error => {
+                        log::error!("Unable to retrieve counters: {:?}", error);
+                        anyhow::bail!("Runtime exited because of retrieving counters failure");
+                    }
                 },
-                timeout: None,
-            })
-            .await
-        {
-            Ok(Ok(())) => log::debug!("Successfully sent activity usage message"),
-            Ok(Err(rpc_message_error)) => log::error!("rpcMessageError : {:?}", rpc_message_error),
-            Err(err) => log::error!("other error : {:?}", err),
+            },
+            Err(e) => log::warn!("Unable to report activity usage: {:?}", e),
         }
 
         select! {
             _ = tokio::time::sleep(Duration::from_secs(1)) => {},
             status = process.clone() => {
-                if let Err(err) = report_service.call(activity::local::SetState {
-                    activity_id: activity_id.to_string(),
-                    state: ActivityState {
-                        state: StatePair::from(State::Terminated),
-                        reason: Some("process exit".to_string()),
-                        error_message: Some(format!("status: {:?}", status)),
-                    },
-                    timeout: None,
-                    credentials: None,
-                }).await {
-                    log::error!("Failed to send state. Err {err}");
-                }
+                set_terminate_state_msg(&report_service, activity_id, Some("process exit".to_string()), Some(format!("status: {:?}", status))).await;
                 log::error!("process exit: {:?}", status);
                 anyhow::bail!("Runtime exited");
             }
@@ -109,6 +101,50 @@ async fn activity_loop<T: process::Runtime + Clone + Unpin + 'static>(
         }
     }
     Ok(())
+}
+
+async fn set_usage_msg(report_service: &Endpoint, activity_id: &str, current_usage: Vec<f64>) {
+    let timestamp = Utc::now().timestamp();
+    match report_service
+        .call(activity::local::SetUsage {
+            activity_id: activity_id.into(),
+            usage: ActivityUsage {
+                current_usage: Some(current_usage),
+                timestamp,
+            },
+            timeout: None,
+        })
+        .await
+    {
+        Ok(Ok(())) => log::debug!("Successfully sent activity usage message"),
+        Ok(Err(rpc_message_error)) => {
+            log::error!("rpcMessageError : {:?}", rpc_message_error)
+        }
+        Err(err) => log::error!("other error : {:?}", err),
+    }
+}
+
+async fn set_terminate_state_msg(
+    report_service: &Endpoint,
+    activity_id: &str,
+    reason: Option<String>,
+    error_message: Option<String>,
+) {
+    if let Err(err) = report_service
+        .call(activity::local::SetState {
+            activity_id: activity_id.into(),
+            state: ActivityState {
+                state: StatePair::from(State::Terminated),
+                reason,
+                error_message,
+            },
+            timeout: None,
+            credentials: None,
+        })
+        .await
+    {
+        log::error!("Failed to send state. Err {err}");
+    }
 }
 
 #[actix_rt::main]
@@ -215,6 +251,21 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
 
     let agreement = AgreementDesc::load(agreement_path)?;
 
+    let mut gsb_proxy = GsbToHttpProxy::new("http://localhost:7861/".into());
+
+    let mut counters = CountersServiceBuilder::new(agreement.counters.clone(), Some(10000));
+    counters
+        .with_counter(TimeCounter::ID, Box::<TimeCounter>::default())
+        .with_counter(
+            "ai-runtime.requests",
+            Box::new(gsb_proxy.requests_counter()),
+        )
+        .with_counter(
+            "golem.usage.gpu-sec",
+            Box::new(gsb_proxy.requests_duration_counter()),
+        );
+    let counters = counters.build().start();
+
     let ctx = ExeUnitContext {
         activity_id: activity_id.clone(),
         report_url: report_url.clone(),
@@ -234,7 +285,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         report_url,
         activity_id,
         ctx.process_controller.clone(),
-        ctx.agreement.clone(),
+        counters.clone(),
     );
 
     #[cfg(target_os = "windows")]
@@ -414,11 +465,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         });
 
         gsb::bind_stream(&exe_unit_url, move |message: GsbHttpCallMessage| {
-            let mut proxy = GsbToHttpProxy {
-                // base_url: "http://10.30.13.8:7861/".to_string(),
-                base_url: "http://localhost:7861/".to_string(),
-            };
-            let stream = proxy.pass(message);
+            let stream = gsb_proxy.pass(message);
             Box::pin(stream.map(Ok))
         });
     };
