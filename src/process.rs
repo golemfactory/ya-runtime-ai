@@ -1,10 +1,9 @@
 use anyhow::Context;
 use async_trait::async_trait;
-
 use futures::TryFutureExt;
 use serde::de::DeserializeOwned;
-
 use serde_json::Value;
+
 use std::cell::RefCell;
 use std::env::current_exe;
 use std::fmt::Debug;
@@ -14,6 +13,10 @@ use std::pin::{pin, Pin};
 use std::process::ExitStatus;
 use std::rc::Rc;
 use std::task::Poll;
+
+use ya_agreement_utils::OfferTemplate;
+
+use crate::offer_template::{self, gpu_detection};
 
 pub mod automatic;
 pub mod dummy;
@@ -40,6 +43,22 @@ pub(crate) trait Runtime: Sized {
     async fn stop(&mut self) -> anyhow::Result<()>;
 
     async fn wait(&mut self) -> std::io::Result<ExitStatus>;
+
+    fn test(config: &Self::CONFIG) -> anyhow::Result<()> {
+        gpu_detection(config).context("Testing runtime failed. Unable to detect GPU.")?;
+        Ok(())
+    }
+
+    fn offer_template(config: &Self::CONFIG) -> anyhow::Result<OfferTemplate> {
+        let mut template = offer_template::template(config)?;
+        if let Some(gpu) = gpu_detection(config)
+            .context("Generating offer template failed. Unable to detect GPU.")?
+        {
+            let gpu = serde_json::value::to_value(gpu)?;
+            template.set_property("golem.!exp.gap-35.v1.inf.gpu", gpu);
+        }
+        Ok(template)
+    }
 }
 
 pub(crate) trait RuntimeConfig: DeserializeOwned + Default + Debug + Clone {

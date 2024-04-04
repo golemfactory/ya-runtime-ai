@@ -235,14 +235,12 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
             args,
         ),
         Command::OfferTemplate => {
-            let template = offer_template::template(&runtime_config)?;
-            io::stdout().write_all(template.as_ref())?;
+            let offer_template = RUNTIME::offer_template(&runtime_config)?;
+            let offer_template = serde_json::to_string(&offer_template)?;
+            io::stdout().write_all(offer_template.as_bytes())?;
             return Ok(());
         }
-        Command::Test => {
-            offer_template::gpu_detection(&runtime_config)?;
-            return Ok(());
-        }
+        Command::Test => return RUNTIME::test(&runtime_config),
     };
 
     let runtime_config = Box::pin(runtime_config);
