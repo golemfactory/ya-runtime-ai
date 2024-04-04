@@ -236,7 +236,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         ),
         Command::OfferTemplate => {
             let offer_template = RUNTIME::offer_template(&runtime_config)?;
-            let offer_template = serde_json::to_string(&offer_template)?;
+            let offer_template = serde_json::to_string_pretty(&offer_template)?;
             io::stdout().write_all(offer_template.as_bytes())?;
             return Ok(());
         }
