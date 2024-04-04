@@ -8,6 +8,10 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 
+use ya_agreement_utils::OfferTemplate;
+
+use crate::offer_template;
+
 use super::{Runtime, RuntimeConfig};
 
 #[derive(Clone)]
@@ -80,5 +84,13 @@ impl Runtime for Dummy {
     async fn wait(&mut self) -> std::io::Result<ExitStatus> {
         let mut child = self.child.lock().await;
         child.wait().await
+    }
+
+    fn test(_config: &Self::CONFIG) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    fn offer_template(config: &Self::CONFIG) -> anyhow::Result<OfferTemplate> {
+        offer_template::template(config)
     }
 }
