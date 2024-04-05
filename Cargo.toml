@@ -57,3 +57,6 @@ predicates = "3.1"
 
 [patch.crates-io]
 ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "9c5f97945d5b4ab3d36c23d0645e468b255974dc" }
+
+[build-dependencies]
+static_vcruntime = "2.0"
