@@ -1,4 +1,3 @@
-use anyhow::{bail, Context};
 use model::{Clocks, Cuda, Gpu, Memory};
 use nvml_wrapper::error::NvmlError;
 use nvml_wrapper::{enum_wrappers::device::Clock, Device, Nvml};
@@ -8,9 +7,13 @@ pub mod model;
 
 #[derive(Error, Debug)]
 pub enum GpuDetectionError {
-    #[error("a libloading error occurred: {0}")]
+    #[error("libloading error occurred: {0}")]
     LibloadingError(#[from] libloading::Error),
-    #[error("an unknown error occurred: {0}")]
+    #[error("Failed to access GPU error: {0}")]
+    GpuAccessError(String),
+    #[error("Failed to access GPU info error: {0}")]
+    GpuInfoAccessError(String),
+    #[error("NVML error occurred: {0}")]
     Unknown(String),
 }
 
@@ -19,48 +22,53 @@ pub struct GpuDetection {
 }
 
 impl GpuDetection {
-    pub fn init() -> anyhow::Result<Self, GpuDetectionError> {
+    pub fn init() -> Result<Self, GpuDetectionError> {
         let nvml = match Nvml::init() {
             Ok(nvlm) => nvlm,
             Err(NvmlError::LibloadingError(e)) => {
-                log::error!("GpuDetection library loading failed: {}", e);
-                return Err(GpuDetectionError::LibloadingError(e));
+                return Err(GpuDetectionError::LibloadingError(e))
             }
-            Err(e) => {
-                log::error!("GpuDetection init failed: {}", e);
-                return Err(GpuDetectionError::Unknown(e.to_string()));
-            }
+            Err(e) => return Err(GpuDetectionError::Unknown(e.to_string())),
         };
         Ok(Self { nvml })
     }
 
     /// `uuid` of GPU device. If not provided first available GPU device will be used.
-    pub fn detect<S: AsRef<str>>(&self, uuid: Option<S>) -> anyhow::Result<Gpu> {
+    pub fn detect<S: AsRef<str>>(&self, uuid: Option<S>) -> Result<Gpu, GpuDetectionError> {
         if let Some(uuid) = uuid {
-            let dev = self.nvml.device_by_uuid(uuid.as_ref()).with_context(|| {
-                format!("Failed to get GPU device with UUID: {}.", uuid.as_ref())
+            let dev = self.nvml.device_by_uuid(uuid.as_ref()).map_err(|err| {
+                GpuDetectionError::GpuAccessError(format!(
+                    "Failed to get GPU device with UUID: {}. Err {}",
+                    uuid.as_ref(),
+                    err
+                ))
             })?;
-            return self.device_info(dev);
+            return self
+                .device_info(dev)
+                .map_err(|err| GpuDetectionError::GpuInfoAccessError(err.to_string()));
         };
 
-        let gpu_count = self
-            .nvml
-            .device_count()
-            .context("Unable to get count of CUDA devices.")?;
+        let gpu_count = self.nvml.device_count().map_err(|err| {
+            GpuDetectionError::Unknown(format!("Failed to get device count. Err {}", err))
+        })?;
 
         if gpu_count == 0 {
-            bail!("No supported GPU device available.")
+            return Err(GpuDetectionError::GpuAccessError("No GPU available".into()));
         }
 
-        let dev = self
-            .nvml
-            .device_by_index(0)
-            .context("Failed to get GPU device.")?;
+        let index = 0;
+        let dev = self.nvml.device_by_index(index).map_err(|err| {
+            GpuDetectionError::GpuAccessError(format!(
+                "Failed to get GPU device under index: {}. Err {}",
+                index, err
+            ))
+        })?;
 
         self.device_info(dev)
+            .map_err(|err| GpuDetectionError::GpuInfoAccessError(err.to_string()))
     }
 
-    fn device_info(&self, dev: Device) -> anyhow::Result<Gpu> {
+    fn device_info(&self, dev: Device) -> Result<Gpu, NvmlError> {
         let model = dev.name()?;
         let version = self.cuda_version()?;
         let cuda = cuda(&dev, version)?;
@@ -74,18 +82,15 @@ impl GpuDetection {
         })
     }
 
-    fn cuda_version(&self) -> anyhow::Result<String> {
-        let version = self
-            .nvml
-            .sys_cuda_driver_version()
-            .context("Unable to get driver version")?;
+    fn cuda_version(&self) -> Result<String, NvmlError> {
+        let version = self.nvml.sys_cuda_driver_version()?;
         let version_major = nvml_wrapper::cuda_driver_version_major(version);
         let version_minor = nvml_wrapper::cuda_driver_version_minor(version);
         Ok(format!("{}.{}", version_major, version_minor))
     }
 }
 
-fn cuda(dev: &Device, version: String) -> anyhow::Result<Cuda> {
+fn cuda(dev: &Device, version: String) -> Result<Cuda, NvmlError> {
     let enabled = true;
     let cores = dev.num_cores()?;
     let compute_capability = compute_capability(dev)?;
@@ -97,12 +102,12 @@ fn cuda(dev: &Device, version: String) -> anyhow::Result<Cuda> {
     })
 }
 
-fn compute_capability(dev: &Device) -> anyhow::Result<String> {
+fn compute_capability(dev: &Device) -> Result<String, NvmlError> {
     let capability = dev.cuda_compute_capability()?;
     Ok(format!("{}.{}", capability.major, capability.minor))
 }
 
-fn clocks(dev: &Device) -> anyhow::Result<Clocks> {
+fn clocks(dev: &Device) -> Result<Clocks, NvmlError> {
     let graphics_mhz = dev.max_clock_info(Clock::Graphics)?;
     let memory_mhz = dev.max_clock_info(Clock::Memory)?;
     let sm_mhz = dev.max_clock_info(Clock::SM)?;
@@ -115,7 +120,7 @@ fn clocks(dev: &Device) -> anyhow::Result<Clocks> {
     })
 }
 
-fn memory(dev: &Device) -> anyhow::Result<Memory> {
+fn memory(dev: &Device) -> Result<Memory, NvmlError> {
     let total_bytes = dev.memory_info()?.total;
     let total_gib = bytes_to_gib(total_bytes);
     Ok(Memory {
@@ -126,7 +131,7 @@ fn memory(dev: &Device) -> anyhow::Result<Memory> {
 
 /// Unused because of lack of `memTransferRatemax` property.
 #[allow(dead_code)]
-fn bandwidth_gib(dev: &Device) -> anyhow::Result<u32> {
+fn bandwidth_gib(dev: &Device) -> Result<u32, NvmlError> {
     let memory_bus_width = dev.memory_bus_width()?;
     let supported_memory_clocks = dev.supported_memory_clocks()?;
     let max_memory_clock = supported_memory_clocks.iter().cloned().fold(0, u32::max);

@@ -51,12 +51,10 @@ pub(crate) trait Runtime: Sized {
 
     fn offer_template(config: &Self::CONFIG) -> anyhow::Result<OfferTemplate> {
         let mut template = offer_template::template(config)?;
-        if let Some(gpu) = gpu_detection(config)
-            .context("Generating offer template failed. Unable to detect GPU.")?
-        {
-            let gpu = serde_json::value::to_value(gpu)?;
-            template.set_property("golem.!exp.gap-35.v1.inf.gpu", gpu);
-        }
+        let gpu = gpu_detection(config)
+            .context("Generating offer template failed. Unable to detect GPU.")?;
+        let gpu = serde_json::value::to_value(gpu)?;
+        template.set_property("golem.!exp.gap-35.v1.inf.gpu", gpu);
         Ok(template)
     }
 }

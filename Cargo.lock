@@ -1983,9 +1983,7 @@ dependencies = [
 name = "gpu-detection"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "libloading",
- "log",
  "nvml-wrapper",
  "serde",
  "thiserror",
