@@ -175,10 +175,14 @@ async fn try_main() -> anyhow::Result<()> {
 
     let (signal_sender, signal_receiver) = mpsc::channel::<Signal>(1);
 
-    select! {
-        res = handle_cli(cli, signal_receiver) => res,
-        res = handle_signals(signal_sender) => res,
-    }
+    tokio::task::spawn_local(async move {
+        handle_signals(signal_sender)
+            .await
+            .inspect_err(|e| log::error!("Error waiting for signal: {e}"))
+            .ok();
+    });
+
+    handle_cli(cli, signal_receiver).await
 }
 
 async fn handle_cli(cli: Cli, signal_receiver: Receiver<Signal>) -> anyhow::Result<()> {
@@ -487,12 +491,13 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
     }
     .context("Activity loop error")?;
 
-    log::info!("Finished waiting");
+    log::info!("Finished waiting for activity loop.");
     send_state(
         &ctx,
         ActivityState::from(StatePair(State::Terminated, None)),
     )
     .await?;
 
+    log::info!("Activity state set to terminated.");
     Ok(())
 }
