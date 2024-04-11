@@ -491,12 +491,13 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
     }
     .context("Activity loop error")?;
 
-    log::info!("Finished waiting");
+    log::info!("Finished waiting for activity loop.");
     send_state(
         &ctx,
         ActivityState::from(StatePair(State::Terminated, None)),
     )
     .await?;
 
+    log::info!("Activity state set to terminated.");
     Ok(())
 }
