@@ -291,7 +291,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
     );
 
     #[cfg(target_os = "windows")]
-    let _job = process::win::JobObject::new()?;
+    let _job = ya_utils_process::JobObject::try_new_current()?;
     {
         let batch = ctx.batches.clone();
         let batch_results = batch.clone();
