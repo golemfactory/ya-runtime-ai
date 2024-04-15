@@ -20,7 +20,6 @@ use crate::offer_template::{self, gpu_detection};
 
 pub mod automatic;
 pub mod dummy;
-pub mod win;
 
 #[derive(Default, Clone)]
 pub struct Usage {

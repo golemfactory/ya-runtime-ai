@@ -12,13 +12,14 @@ members = [
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "9c5f97945d5b4ab3d36c23d0645e468b255974dc", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "9c5f97945d5b4ab3d36c23d0645e468b255974dc" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "c16a6baa45f523ecf4dd8f190d5d0db5cd44c14b", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "c16a6baa45f523ecf4dd8f190d5d0db5cd44c14b" }
 ya-service-bus = "0.7.1"
 ya-client-model = "0.6.0"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "9c5f97945d5b4ab3d36c23d0645e468b255974dc" }
-ya-counters = { git = "https://github.com/golemfactory/yagna.git", rev = "9c5f97945d5b4ab3d36c23d0645e468b255974dc" }
+ya-utils-process = { git = "https://github.com/golemfactory/yagna.git", rev = "c16a6baa45f523ecf4dd8f190d5d0db5cd44c14b" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "c16a6baa45f523ecf4dd8f190d5d0db5cd44c14b" }
+ya-counters = { git = "https://github.com/golemfactory/yagna.git", rev = "c16a6baa45f523ecf4dd8f190d5d0db5cd44c14b" }
 gpu-detection = { path = "gpu-detection" }
 
 actix = "0.13"
@@ -40,23 +41,19 @@ flexi_logger = { version = "0.28", features = ["colors"] }
 regex = "1"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 async-stream = "0.3"
-ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "9c5f97945d5b4ab3d36c23d0645e468b255974dc" }
+ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "c16a6baa45f523ecf4dd8f190d5d0db5cd44c14b" }
 http = "1.1"
 bytes = "1.5"
 humantime = "2.1"
 humantime-serde = "1.1"
 thiserror = "1.0.58"
 
-[target.'cfg(target_os = "windows")'.dependencies]
-winapi = { version = "0.3", features = ["jobapi2", "processthreadsapi", "handleapi"] }
-
-
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.1"
 
 [patch.crates-io]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "9c5f97945d5b4ab3d36c23d0645e468b255974dc" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "c16a6baa45f523ecf4dd8f190d5d0db5cd44c14b" }
 
 [build-dependencies]
 static_vcruntime = "2.0"
