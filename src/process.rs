@@ -44,14 +44,17 @@ pub(crate) trait Runtime: Sized {
     async fn wait(&mut self) -> std::io::Result<ExitStatus>;
 
     fn test(config: &Self::CONFIG) -> anyhow::Result<()> {
-        gpu_detection(config).context("Testing runtime failed. Unable to detect GPU.")?;
+        gpu_detection(config).map_err(|err| {
+            anyhow::anyhow!("Testing runtime failed. Unable to detect GPU. Error: {err}")
+        })?;
         Ok(())
     }
 
     fn offer_template(config: &Self::CONFIG) -> anyhow::Result<OfferTemplate> {
         let mut template = offer_template::template(config)?;
-        let gpu = gpu_detection(config)
-            .context("Generating offer template failed. Unable to detect GPU.")?;
+        let gpu = gpu_detection(config).map_err(|err| {
+            anyhow::anyhow!("Generating offer template failed. Unable to detect GPU. Error: {err}")
+        })?;
         let gpu = serde_json::value::to_value(gpu)?;
         template.set_property("golem.!exp.gap-35.v1.inf.gpu", gpu);
         Ok(template)
