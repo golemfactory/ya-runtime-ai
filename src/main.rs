@@ -25,7 +25,6 @@ use ya_counters::message::GetCounters;
 use ya_counters::service::{CountersService, CountersServiceBuilder};
 use ya_counters::TimeCounter;
 use ya_gsb_http_proxy::gsb_to_http::GsbToHttpProxy;
-use ya_gsb_http_proxy::message::GsbHttpCallMessage;
 use ya_service_bus::typed::{self as gsb, Endpoint};
 use ya_transfer::transfer::{DeployImage, Shutdown, TransferService, TransferServiceContext};
 
@@ -466,10 +465,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
             }
         });
 
-        gsb::bind_stream(&exe_unit_url, move |message: GsbHttpCallMessage| {
-            let stream = gsb_proxy.pass(message);
-            Box::pin(stream.map(Ok))
-        });
+        gsb_proxy.bind(&exe_unit_url);
     };
     send_state(
         &ctx,
