@@ -466,6 +466,7 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
         });
 
         gsb_proxy.bind(&exe_unit_url);
+        gsb_proxy.bind_streaming(&exe_unit_url);
     };
     send_state(
         &ctx,
