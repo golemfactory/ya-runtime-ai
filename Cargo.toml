@@ -55,11 +55,5 @@ predicates = "3.1"
 [patch.crates-io]
 ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "891f319668add90938183d7f266790329bcb5f08" }
 
-
-[patch."https://github.com/golemfactory/yagna.git"]
-#ya-gsb-http-proxy = { path = "../yagna/exe-unit/components/gsb-http-proxy" }
-#ya-core-model = { path = "../yagna/core/model" }
-ya-counters = { path = "../yagna/exe-unit/components/counters" }
-
 [build-dependencies]
 static_vcruntime = "2.0"

@@ -5792,6 +5792,7 @@ dependencies = [
 [[package]]
 name = "ya-agreement-utils"
 version = "0.6.0"
+source = "git+https://github.com/golemfactory/yagna.git?rev=eebe86dc36e26a97253f43132a2829f88f40d009#eebe86dc36e26a97253f43132a2829f88f40d009"
 dependencies = [
  "chrono",
  "regex",
@@ -5892,6 +5893,7 @@ dependencies = [
 [[package]]
 name = "ya-counters"
 version = "0.2.0"
+source = "git+https://github.com/golemfactory/yagna.git?rev=eebe86dc36e26a97253f43132a2829f88f40d009#eebe86dc36e26a97253f43132a2829f88f40d009"
 dependencies = [
  "actix",
  "actix-rt",
