@@ -1,8 +1,10 @@
 use anyhow::Context;
 use async_trait::async_trait;
+use bytes::{Buf, BytesMut};
 use futures::TryFutureExt;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use tokio_util::codec::Decoder;
 
 use std::cell::RefCell;
 use std::env::current_exe;
@@ -141,4 +143,50 @@ impl<T: Runtime> Future for ProcessController<T> {
             _ => Poll::Pending,
         }
     }
+}
+
+pub struct LossyLinesCodec {
+    max_length: usize,
+}
+
+impl Default for LossyLinesCodec {
+    fn default() -> Self {
+        Self {
+            max_length: usize::MAX,
+        }
+    }
+}
+
+impl Decoder for LossyLinesCodec {
+    type Item = String;
+
+    type Error = anyhow::Error;
+
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        let read_to = std::cmp::min(self.max_length.saturating_add(1), buf.len());
+        let new_line_offset = buf[0..read_to].iter().position(|b| *b == b'\n');
+        let has_new_line = new_line_offset.is_some();
+        let offset = new_line_offset
+            .map(|offset| std::cmp::min(offset, read_to))
+            .unwrap_or(read_to);
+        let mut line = buf.split_to(offset);
+        if has_new_line {
+            buf.advance(1);
+        }
+        let mut line: &[u8] = &line;
+        if let Some(&b'\r') = line.last() {
+            // skip carriage return
+            line = &line[..line.len() - 1];
+        }
+        if line.is_empty() {
+            return Ok(None);
+        }
+        let line = String::from_utf8_lossy(line).to_string();
+        Ok(Some(line))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // TODO
 }

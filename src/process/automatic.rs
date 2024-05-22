@@ -4,11 +4,13 @@ mod monitor;
 
 use self::config::Config;
 
-use super::Runtime;
+use super::{LossyLinesCodec, Runtime};
 
 use crate::process::automatic::monitor::OutputMonitor;
 use anyhow::Context;
 use async_trait::async_trait;
+use bytes::{Buf, BytesMut};
+use futures::TryStreamExt;
 use tokio::{
     io::AsyncBufReadExt,
     io::BufReader,
@@ -17,9 +19,11 @@ use tokio::{
     time::timeout,
 };
 use tokio_stream::{wrappers::LinesStream, StreamExt};
+use tokio_util::codec::{Decoder, FramedRead, LinesCodec};
 
 use std::pin::Pin;
 use std::{
+    io::Read,
     path::PathBuf,
     process::{ExitStatus, Stdio},
     sync::Arc,
@@ -132,7 +136,7 @@ fn format_path(path: std::path::PathBuf) -> Option<String> {
     path.to_str().map(str::to_string)
 }
 
-type OutputLines = Pin<Box<dyn futures::Stream<Item = std::io::Result<String>> + Send>>;
+type OutputLines = Pin<Box<dyn futures::Stream<Item = anyhow::Result<String>> + Send>>;
 
 fn output_lines(child: &mut Child) -> anyhow::Result<OutputLines> {
     let stdout = child
@@ -144,8 +148,12 @@ fn output_lines(child: &mut Child) -> anyhow::Result<OutputLines> {
         .take()
         .context("Failed to read Automatic stderr")?;
 
-    let stdout = LinesStream::new(BufReader::new(stdout).lines());
-    let stderr = LinesStream::new(BufReader::new(stderr).lines());
+    let stdout = BufReader::new(stdout);
+    let stdout = FramedRead::new(stdout, LossyLinesCodec::default());
+
+    let stderr = BufReader::new(stderr);
+    let stderr = FramedRead::new(stderr, LossyLinesCodec::default());
+
     Ok(futures::StreamExt::boxed(stdout.merge(stderr)))
 }
 
