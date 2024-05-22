@@ -1,3 +1,5 @@
+use crate::process::OutputLines;
+
 use super::*;
 
 use reqwest::Client;

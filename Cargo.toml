@@ -52,6 +52,7 @@ thiserror = "1.0.58"
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.1"
+test-case = "3.3"
 
 [patch.crates-io]
 ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "891f319668add90938183d7f266790329bcb5f08" }

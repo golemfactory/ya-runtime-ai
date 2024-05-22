@@ -4,26 +4,18 @@ mod monitor;
 
 use self::config::Config;
 
-use super::{LossyLinesCodec, Runtime};
+use super::Runtime;
 
-use crate::process::automatic::monitor::OutputMonitor;
+use crate::process::{automatic::monitor::OutputMonitor, process_output};
 use anyhow::Context;
 use async_trait::async_trait;
-use bytes::{Buf, BytesMut};
-use futures::TryStreamExt;
 use tokio::{
-    io::AsyncBufReadExt,
-    io::BufReader,
     process::{Child, Command},
     sync::Mutex,
     time::timeout,
 };
-use tokio_stream::{wrappers::LinesStream, StreamExt};
-use tokio_util::codec::{Decoder, FramedRead, LinesCodec};
 
-use std::pin::Pin;
 use std::{
-    io::Read,
     path::PathBuf,
     process::{ExitStatus, Stdio},
     sync::Arc,
@@ -48,7 +40,7 @@ impl Runtime for Automatic {
         log::info!("Spawning Automatic process");
         let mut child = cmd.kill_on_drop(true).spawn()?;
 
-        let output = output_lines(&mut child)?;
+        let output = process_output(&mut child)?;
 
         log::info!("Waiting for Automatic startup");
         let output_monitor = timeout(
@@ -134,27 +126,6 @@ fn format_path(path: std::path::PathBuf) -> Option<String> {
 #[cfg(target_family = "unix")]
 fn format_path(path: std::path::PathBuf) -> Option<String> {
     path.to_str().map(str::to_string)
-}
-
-type OutputLines = Pin<Box<dyn futures::Stream<Item = anyhow::Result<String>> + Send>>;
-
-fn output_lines(child: &mut Child) -> anyhow::Result<OutputLines> {
-    let stdout = child
-        .stdout
-        .take()
-        .context("Failed to read Automatic stdout")?;
-    let stderr = child
-        .stderr
-        .take()
-        .context("Failed to read Automatic stderr")?;
-
-    let stdout = BufReader::new(stdout);
-    let stdout = FramedRead::new(stdout, LossyLinesCodec::default());
-
-    let stderr = BufReader::new(stderr);
-    let stderr = FramedRead::new(stderr, LossyLinesCodec::default());
-
-    Ok(futures::StreamExt::boxed(stdout.merge(stderr)))
 }
 
 #[cfg(target_family = "windows")]
