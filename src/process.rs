@@ -203,7 +203,7 @@ impl Decoder for LossyLinesCodec {
         if line.is_empty() {
             return Ok(None);
         }
-        // Process output on Windows is encoded in UTF-16. To avoid OS specific implementation of process output handling the output is lossy converted to UTF-8. 
+        // Process output on Windows is encoded in UTF-16. To avoid OS specific implementation of process output handling the output is lossy converted to UTF-8.
         // It allows to avoid errors when decoding some Windows error log messages.
         let line = String::from_utf8_lossy(line).to_string();
         Ok(Some(line))
