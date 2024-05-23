@@ -1,3 +1,5 @@
+use crate::process::OutputLines;
+
 use super::*;
 
 use reqwest::Client;
@@ -26,7 +28,7 @@ impl OutputMonitor {
 
         on_startup_rx
             .await
-            .context("Monitoring Automatic startup failed")??;
+            .context("Automatic failed on startup")??;
 
         Ok(Self {
             output_task,

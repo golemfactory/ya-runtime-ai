@@ -36,6 +36,7 @@ yansi = "1.0"
 chrono = "0.4.34"
 tokio = { version = "1.32", features = ["macros", "signal"] }
 tokio-stream = { version = "0.1", features = ["io-util"] }
+tokio-util = { version = "0.7", features = ["codec"] }
 futures = "0.3"
 flexi_logger = { version = "0.28", features = ["colors"] }
 regex = "1"
@@ -51,6 +52,7 @@ thiserror = "1.0.58"
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.1"
+test-case = "3.3"
 
 [patch.crates-io]
 ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "891f319668add90938183d7f266790329bcb5f08" }

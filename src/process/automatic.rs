@@ -6,19 +6,15 @@ use self::config::Config;
 
 use super::Runtime;
 
-use crate::process::automatic::monitor::OutputMonitor;
+use crate::process::{automatic::monitor::OutputMonitor, process_output};
 use anyhow::Context;
 use async_trait::async_trait;
 use tokio::{
-    io::AsyncBufReadExt,
-    io::BufReader,
     process::{Child, Command},
     sync::Mutex,
     time::timeout,
 };
-use tokio_stream::{wrappers::LinesStream, StreamExt};
 
-use std::pin::Pin;
 use std::{
     path::PathBuf,
     process::{ExitStatus, Stdio},
@@ -44,7 +40,7 @@ impl Runtime for Automatic {
         log::info!("Spawning Automatic process");
         let mut child = cmd.kill_on_drop(true).spawn()?;
 
-        let output = output_lines(&mut child)?;
+        let output = process_output(&mut child)?;
 
         log::info!("Waiting for Automatic startup");
         let output_monitor = timeout(
@@ -130,23 +126,6 @@ fn format_path(path: std::path::PathBuf) -> Option<String> {
 #[cfg(target_family = "unix")]
 fn format_path(path: std::path::PathBuf) -> Option<String> {
     path.to_str().map(str::to_string)
-}
-
-type OutputLines = Pin<Box<dyn futures::Stream<Item = std::io::Result<String>> + Send>>;
-
-fn output_lines(child: &mut Child) -> anyhow::Result<OutputLines> {
-    let stdout = child
-        .stdout
-        .take()
-        .context("Failed to read Automatic stdout")?;
-    let stderr = child
-        .stderr
-        .take()
-        .context("Failed to read Automatic stderr")?;
-
-    let stdout = LinesStream::new(BufReader::new(stdout).lines());
-    let stderr = LinesStream::new(BufReader::new(stderr).lines());
-    Ok(futures::StreamExt::boxed(stdout.merge(stderr)))
 }
 
 #[cfg(target_family = "windows")]
