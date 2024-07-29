@@ -61,13 +61,6 @@ impl Runtime for Automatic {
         })
     }
 
-    async fn test(config: Self::CONFIG) -> anyhow::Result<()> {
-        gpu_detection(&config)
-            .map_err(|err| anyhow::anyhow!("Unable to detect GPU. Error: {err}"))?;
-
-        Ok(())
-    }
-
     async fn stop(&mut self) -> anyhow::Result<()> {
         log::info!("Stopping Automatic server");
         let client = reqwest::Client::new();
@@ -86,6 +79,23 @@ impl Runtime for Automatic {
         let res = child.wait().await;
         log::debug!("Automatic process has stopped");
         res
+    }
+
+    async fn test(config: Self::CONFIG) -> anyhow::Result<()> {
+        gpu_detection(&config)
+            .map_err(|err| anyhow::anyhow!("Unable to detect GPU. Error: {err}"))?;
+
+        if config.extended_test {
+            let mut automatic = Self::start(None, config).await?;
+            automatic.stop().await?;
+            let status = automatic.wait().await?;
+
+            return match status.success() {
+                true => Ok(()),
+                false => anyhow::bail!("Automatic test failed with code: {:?}", status.code()),
+            };
+        }
+        Ok(())
     }
 }
 

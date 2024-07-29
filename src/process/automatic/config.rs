@@ -10,29 +10,26 @@ pub(crate) struct Config {
     pub startup_script: String,
 
     pub api_port: u16,
-
     pub api_host: String,
 
     pub api_shutdown_path: String,
 
     pub model_arg: String,
-
     pub additional_args: Vec<String>,
 
     // Monitor
     #[serde(with = "humantime_serde")]
     pub startup_timeout: Duration,
-
     #[serde(with = "humantime_serde")]
     pub api_ping_delay: Duration,
 
     pub monitored_startup_msg: String,
-
     pub monitored_model_failure_msg: String,
-
     pub monitored_msgs_w_trace_lvl: Vec<String>,
 
     pub gpu_uuid: Option<String>,
+
+    pub extended_test: bool,
 }
 
 impl RuntimeConfig for Config {
@@ -63,6 +60,7 @@ impl Default for Config {
                 "\"GET / HTTP/1.1\" 404 Not Found".into(),
             ],
             gpu_uuid: None,
+            extended_test: false,
         }
     }
 }
