@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use actix::prelude::*;
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use chrono::Utc;
 use clap::Parser;
 use futures::prelude::*;
@@ -243,7 +243,11 @@ async fn run<RUNTIME: process::Runtime + Clone + Unpin + 'static>(
             io::stdout().write_all(offer_template.as_bytes())?;
             return Ok(());
         }
-        Command::Test => return RUNTIME::test(&runtime_config),
+        Command::Test => {
+            return RUNTIME::test(runtime_config.clone())
+                .await
+                .map_err(|e| anyhow!("Testing runtime failed: {e}"))
+        }
     };
 
     let runtime_config = Box::pin(runtime_config);

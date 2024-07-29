@@ -15,6 +15,7 @@ use tokio::{
     time::timeout,
 };
 
+use crate::offer_template::gpu_detection;
 use std::{
     path::PathBuf,
     process::{ExitStatus, Stdio},
@@ -58,6 +59,13 @@ impl Runtime for Automatic {
             output_monitor: Arc::new(output_monitor),
             config,
         })
+    }
+
+    async fn test(config: Self::CONFIG) -> anyhow::Result<()> {
+        gpu_detection(&config)
+            .map_err(|err| anyhow::anyhow!("Unable to detect GPU. Error: {err}"))?;
+
+        Ok(())
     }
 
     async fn stop(&mut self) -> anyhow::Result<()> {

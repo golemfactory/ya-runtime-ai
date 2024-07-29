@@ -32,7 +32,7 @@ pub struct Usage {
 }
 
 #[async_trait]
-pub(crate) trait Runtime: Sized {
+pub(crate) trait Runtime: Sized + Send {
     type CONFIG: RuntimeConfig;
 
     fn parse_config(config: &Option<Value>) -> anyhow::Result<Self::CONFIG> {
@@ -48,10 +48,9 @@ pub(crate) trait Runtime: Sized {
 
     async fn wait(&mut self) -> std::io::Result<ExitStatus>;
 
-    fn test(config: &Self::CONFIG) -> anyhow::Result<()> {
-        gpu_detection(config).map_err(|err| {
-            anyhow::anyhow!("Testing runtime failed. Unable to detect GPU. Error: {err}")
-        })?;
+    async fn test(config: Self::CONFIG) -> anyhow::Result<()> {
+        gpu_detection(&config)
+            .map_err(|err| anyhow::anyhow!("Unable to detect GPU. Error: {err}"))?;
         Ok(())
     }
 
@@ -66,7 +65,7 @@ pub(crate) trait Runtime: Sized {
     }
 }
 
-pub(crate) trait RuntimeConfig: DeserializeOwned + Default + Debug + Clone {
+pub(crate) trait RuntimeConfig: DeserializeOwned + Default + Debug + Clone + Send {
     fn gpu_uuid(&self) -> Option<String>;
 }
 

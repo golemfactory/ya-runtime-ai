@@ -86,7 +86,7 @@ impl Runtime for Dummy {
         child.wait().await
     }
 
-    fn test(_config: &Self::CONFIG) -> anyhow::Result<()> {
+    async fn test(_config: Self::CONFIG) -> anyhow::Result<()> {
         Ok(())
     }
 
