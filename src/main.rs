@@ -115,7 +115,7 @@ async fn set_usage_msg(report_service: &Endpoint, activity_id: &str, current_usa
         })
         .await
     {
-        Ok(Ok(())) => log::debug!("Successfully sent activity usage message"),
+        Ok(Ok(())) => log::trace!("Successfully sent activity usage message"),
         Ok(Err(rpc_message_error)) => {
             log::error!("rpcMessageError : {:?}", rpc_message_error)
         }

@@ -2,7 +2,6 @@ use crate::process::OutputLines;
 
 use super::*;
 
-use reqwest::Client;
 use std::sync::Arc;
 use tokio::sync::oneshot::{self};
 use tokio::task::JoinHandle;
@@ -11,8 +10,6 @@ use tokio_stream::StreamExt;
 pub(super) struct OutputMonitor {
     #[allow(dead_code)]
     output_task: Arc<JoinHandle<()>>,
-    #[allow(dead_code)]
-    pinger_task: Arc<JoinHandle<()>>,
 }
 
 impl OutputMonitor {
@@ -23,17 +20,12 @@ impl OutputMonitor {
             config: config.clone(),
         };
         let output_task = Arc::new(spawn_output_monitoring(lines, output_handler));
-        // Repetitive calling Automatic API triggers flushing Automatic process `stdout`.
-        let pinger_task = Arc::new(spawn_api_pinger(config.clone()));
 
         on_startup_rx
             .await
             .context("Automatic failed on startup")??;
 
-        Ok(Self {
-            output_task,
-            pinger_task,
-        })
+        Ok(Self { output_task })
     }
 }
 
@@ -49,30 +41,6 @@ fn spawn_output_monitoring(
                 }
                 Err(err) => log::error!("Failed to read line. Err {err}"),
             }
-        }
-    })
-}
-
-/// Repetitive calling Automatic API triggers flushing process `stdout`.
-/// It is required to log it, to monitor Automatic startup, and its shutdown.
-/// When Automatic is started from console its output gets flushed.
-/// Description and solution idea for faced issue https://stackoverflow.com/a/39528785/2608409
-fn spawn_api_pinger(config: Config) -> JoinHandle<()> {
-    log::debug!("Starting API pinger");
-    let url = format!("http://{}:{}", config.api_host, config.api_port);
-    let client = Client::new().get(url);
-    tokio::spawn(async move {
-        loop {
-            let Some(client) = client.try_clone() else {
-                log::error!("Unable ping API");
-                break;
-            };
-            log::trace!("Pinging API");
-            match client.send().await {
-                Ok(response) => log::trace!("Ping respone: {response:?}"),
-                Err(err) => log::warn!("Ping failure: {err:?}"),
-            };
-            tokio::time::sleep(config.api_ping_delay).await;
         }
     })
 }
