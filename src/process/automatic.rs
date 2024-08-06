@@ -84,7 +84,7 @@ impl Runtime for Automatic {
 fn build_cmd(model: Option<PathBuf>, config: &Config) -> anyhow::Result<Command> {
     let script = super::find_file(&config.startup_script)?;
 
-    let mut cmd = Command::new(&script);
+    let mut cmd = Command::new(script);
 
     cmd.args(&config.additional_args);
 
@@ -94,11 +94,9 @@ fn build_cmd(model: Option<PathBuf>, config: &Config) -> anyhow::Result<Command>
         log::warn!("No model arg");
     }
 
-    let work_dir = script.parent().unwrap();
     cmd.stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .stdin(Stdio::null())
-        .current_dir(work_dir);
+        .stdin(Stdio::null());
     Ok(cmd)
 }
 
