@@ -94,11 +94,9 @@ fn build_cmd(model: Option<PathBuf>, config: &Config) -> anyhow::Result<Command>
         log::warn!("No model arg");
     }
 
-    let work_dir = script.parent().unwrap();
     cmd.stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .stdin(Stdio::null())
-        .current_dir(work_dir);
+        .stdin(Stdio::null());
     Ok(cmd)
 }
 
