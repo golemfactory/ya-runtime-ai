@@ -12,15 +12,15 @@ members = [
 ]
 
 [dependencies]
-ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-preview.ai.46" }
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-preview.ai.46", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-preview.ai.46" }
-ya-utils-process = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-preview.ai.46" }
+ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "239a359184cd428eff17dedc45cbee5e9bf6053f" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "239a359184cd428eff17dedc45cbee5e9bf6053f", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "239a359184cd428eff17dedc45cbee5e9bf6053f" }
+ya-utils-process = { git = "https://github.com/golemfactory/yagna.git", rev = "239a359184cd428eff17dedc45cbee5e9bf6053f" }
 ya-service-bus = "0.7.3"
 ya-client-model = "0.7"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-preview.ai.46" }
-ya-counters = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-preview.ai.46" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "239a359184cd428eff17dedc45cbee5e9bf6053f" }
+ya-counters = { git = "https://github.com/golemfactory/yagna.git", rev = "239a359184cd428eff17dedc45cbee5e9bf6053f" }
 gpu-detection = { path = "gpu-detection" }
 
 actix = "0.13"
@@ -54,8 +54,6 @@ assert_cmd = "2.0"
 predicates = "3.1"
 test-case = "3.3"
 
-[patch.crates-io]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.46" }
 
 [build-dependencies]
 static_vcruntime = "2.0"

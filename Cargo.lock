@@ -1305,7 +1305,7 @@ dependencies = [
 [[package]]
 name = "gftp"
 version = "0.4.1"
-source = "git+https://github.com/golemfactory/yagna.git?tag=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
+source = "git+https://github.com/golemfactory/yagna.git?rev=239a359184cd428eff17dedc45cbee5e9bf6053f#239a359184cd428eff17dedc45cbee5e9bf6053f"
 dependencies = [
  "actix-rt",
  "anyhow",
@@ -4060,7 +4060,7 @@ dependencies = [
 [[package]]
 name = "ya-agreement-utils"
 version = "0.6.0"
-source = "git+https://github.com/golemfactory/yagna.git?tag=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
+source = "git+https://github.com/golemfactory/yagna.git?rev=239a359184cd428eff17dedc45cbee5e9bf6053f#239a359184cd428eff17dedc45cbee5e9bf6053f"
 dependencies = [
  "chrono",
  "regex",
@@ -4145,7 +4145,7 @@ dependencies = [
 [[package]]
 name = "ya-core-model"
 version = "0.10.0"
-source = "git+https://github.com/golemfactory/yagna.git?tag=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
+source = "git+https://github.com/golemfactory/yagna.git?rev=239a359184cd428eff17dedc45cbee5e9bf6053f#239a359184cd428eff17dedc45cbee5e9bf6053f"
 dependencies = [
  "chrono",
  "derive_more",
@@ -4165,7 +4165,7 @@ dependencies = [
 [[package]]
 name = "ya-counters"
 version = "0.2.0"
-source = "git+https://github.com/golemfactory/yagna.git?tag=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
+source = "git+https://github.com/golemfactory/yagna.git?rev=239a359184cd428eff17dedc45cbee5e9bf6053f#239a359184cd428eff17dedc45cbee5e9bf6053f"
 dependencies = [
  "actix",
  "actix-rt",
@@ -4183,7 +4183,7 @@ dependencies = [
 [[package]]
 name = "ya-gsb-http-proxy"
 version = "0.1.0"
-source = "git+https://github.com/golemfactory/yagna.git?tag=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
+source = "git+https://github.com/golemfactory/yagna.git?rev=239a359184cd428eff17dedc45cbee5e9bf6053f#239a359184cd428eff17dedc45cbee5e9bf6053f"
 dependencies = [
  "actix",
  "actix-http",
@@ -4272,7 +4272,7 @@ dependencies = [
 [[package]]
 name = "ya-runtime-api"
 version = "0.7.1"
-source = "git+https://github.com/golemfactory/yagna.git?tag=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
+source = "git+https://github.com/golemfactory/yagna.git?rev=239a359184cd428eff17dedc45cbee5e9bf6053f#239a359184cd428eff17dedc45cbee5e9bf6053f"
 dependencies = [
  "anyhow",
  "bytes 1.6.0",
@@ -4349,7 +4349,7 @@ dependencies = [
 [[package]]
 name = "ya-transfer"
 version = "0.3.0"
-source = "git+https://github.com/golemfactory/yagna.git?tag=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
+source = "git+https://github.com/golemfactory/yagna.git?rev=239a359184cd428eff17dedc45cbee5e9bf6053f#239a359184cd428eff17dedc45cbee5e9bf6053f"
 dependencies = [
  "actix",
  "actix-http",
@@ -4395,7 +4395,7 @@ dependencies = [
 [[package]]
 name = "ya-utils-futures"
 version = "0.3.0"
-source = "git+https://github.com/golemfactory/yagna.git?tag=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
+source = "git+https://github.com/golemfactory/yagna.git?rev=239a359184cd428eff17dedc45cbee5e9bf6053f#239a359184cd428eff17dedc45cbee5e9bf6053f"
 dependencies = [
  "futures 0.3.30",
  "tokio",
@@ -4404,7 +4404,7 @@ dependencies = [
 [[package]]
 name = "ya-utils-path"
 version = "0.1.0"
-source = "git+https://github.com/golemfactory/yagna.git?tag=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
+source = "git+https://github.com/golemfactory/yagna.git?rev=239a359184cd428eff17dedc45cbee5e9bf6053f#239a359184cd428eff17dedc45cbee5e9bf6053f"
 dependencies = [
  "anyhow",
  "directories",
@@ -4414,7 +4414,7 @@ dependencies = [
 [[package]]
 name = "ya-utils-process"
 version = "0.3.0"
-source = "git+https://github.com/golemfactory/yagna.git?tag=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
+source = "git+https://github.com/golemfactory/yagna.git?rev=239a359184cd428eff17dedc45cbee5e9bf6053f#239a359184cd428eff17dedc45cbee5e9bf6053f"
 dependencies = [
  "actix",
  "anyhow",
@@ -4516,8 +4516,3 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "ya-core-model"
-version = "0.10.0"
-source = "git+https://github.com/golemfactory/yagna.git?rev=pre-rel-v0.16.0-preview.ai.46#44b0397208cba6bb0468caca8d7fab267991fe36"
