@@ -6,20 +6,21 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = [ 
+members = [
     "gpu-detection",
     "runtimes/dummy",
 ]
 
 [dependencies]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-ai-rc20", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-ai-rc20" }
-ya-utils-process = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-ai-rc20" }
+ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20" }
+ya-utils-process = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20" }
 ya-service-bus = "0.7.3"
-ya-client-model = "0.6.0"
+ya-client-model = "0.7"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-ai-rc20" }
-ya-counters = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-ai-rc20" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20" }
+ya-counters = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20" }
 gpu-detection = { path = "gpu-detection" }
 
 actix = "0.13"
@@ -42,7 +43,6 @@ flexi_logger = { version = "0.28", features = ["colors"] }
 regex = "1"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 async-stream = "0.3"
-ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", tag = "pre-rel-v0.16.0-ai-rc20" }
 http = "1.1"
 bytes = "1.5"
 humantime = "2.1"
@@ -54,8 +54,6 @@ assert_cmd = "2.0"
 predicates = "3.1"
 test-case = "3.3"
 
-[patch.crates-io]
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "891f319668add90938183d7f266790329bcb5f08" }
 
 [build-dependencies]
 static_vcruntime = "2.0"
