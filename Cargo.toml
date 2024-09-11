@@ -1,9 +1,7 @@
 [package]
 name = "ya-runtime-ai"
-version = "0.2.3"
+version = "0.2.6"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
 members = [
@@ -12,15 +10,15 @@ members = [
 ]
 
 [dependencies]
-ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20" }
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20" }
-ya-utils-process = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20" }
+ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47" }
+ya-utils-process = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47" }
 ya-service-bus = "0.7.3"
 ya-client-model = "0.7"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20" }
-ya-counters = { git = "https://github.com/golemfactory/yagna.git", rev = "ca8082417c353862a21beff5d3a6e08441ba1e20" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47" }
+ya-counters = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47" }
 gpu-detection = { path = "gpu-detection" }
 
 actix = "0.13"
