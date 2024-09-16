@@ -3,9 +3,19 @@ name = "dummy"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 build = "../../build.rs"
+
+[dependencies]
+actix-web = "4.9"
+anyhow = "1.0"
+env_logger = "0.11.5"
+humantime = "2.1"
+humantime-serde = "1.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+log = "0.4"
+tokio = { version = "1.32", features = [] }
+
 
 [build-dependencies]
 static_vcruntime = "2.0"
