@@ -39,7 +39,7 @@ async fn generate_traffic(info: web::Query<GenerateTrafficQuery>) -> impl Respon
     );
 
     tokio::time::sleep(info.sleep_time).await;
-    HttpResponse::Ok()
+    HttpResponse::Ok().body(vec![1; info.response_size as usize])
 }
 
 #[actix_web::main]
