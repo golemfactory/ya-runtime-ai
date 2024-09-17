@@ -19,17 +19,28 @@ async fn healthcheck(_req: HttpRequest) -> impl Responder {
     HttpResponse::Ok()
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Text2ImageBody {
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+}
+
 #[post("/sdapi/v1/txt2img")]
-async fn text2img(_req: HttpRequest) -> impl Responder {
+async fn text2img(params: web::Json<Text2ImageBody>) -> impl Responder {
     log::info!("Endpoint: sdapi/v1/txt2img");
 
     let mut bytes: Vec<u8> = Vec::new();
-    match fractal(800, 800).write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png) {
+
+    let params = params.into_inner();
+    let width = params.width.unwrap_or(800);
+    let height = params.height.unwrap_or(800);
+
+    match fractal(width, height).write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png) {
         Ok(_) => HttpResponse::Ok().json(json!({ "images": [BASE64_STANDARD.encode(bytes)] })),
         Err(e) => {
             log::error!("Error generating image: {e}");
-            return HttpResponse::InternalServerError()
-                .body(format!("Error generating image: {e}"));
+            HttpResponse::InternalServerError().body(format!("Error generating image: {e}"))
         }
     }
 }
