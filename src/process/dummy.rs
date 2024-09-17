@@ -1,3 +1,4 @@
+use std::fs;
 use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 use std::sync::Arc;
@@ -13,6 +14,8 @@ use ya_agreement_utils::OfferTemplate;
 use crate::offer_template;
 
 use super::{Runtime, RuntimeConfig};
+
+const OFFER_OVERRIDE_FILE_PATH_ENV: &str = "OFFER_OVERRIDE_FILE_PATH";
 
 #[derive(Clone)]
 pub struct Dummy {
@@ -87,10 +90,27 @@ impl Runtime for Dummy {
     }
 
     fn test(_config: &Self::CONFIG) -> anyhow::Result<()> {
-        Ok(())
+        Dummy::read_overrides().map(|_| ())
     }
 
     fn offer_template(config: &Self::CONFIG) -> anyhow::Result<OfferTemplate> {
-        offer_template::template(config)
+        let template = offer_template::template(config)?;
+        if let Ok(Some(overrides)) = Dummy::read_overrides() {
+            Ok(template.patch(overrides))
+        } else {
+            Ok(template)
+        }
+    }
+}
+
+impl Dummy {
+    fn read_overrides() -> anyhow::Result<Option<OfferTemplate>> {
+        if let Ok(override_json_path) = std::env::var(OFFER_OVERRIDE_FILE_PATH_ENV) {
+            let file = fs::File::open(override_json_path)?;
+            let overrides: OfferTemplate = serde_json::from_reader(file)?;
+            Ok(Some(overrides))
+        } else {
+            Ok(None)
+        }
     }
 }
