@@ -7,7 +7,7 @@ on:
       - pre-rel-*
 env:
   CARGO_TERM_COLOR: always
-  rust_stable: 1.76.0
+  rust_stable: 1.79.0
 
 jobs:
   release:
@@ -20,7 +20,7 @@ jobs:
         os:
           - ubuntu
           - windows
-      
+
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

@@ -26,6 +26,7 @@ use crate::offer_template::{self, gpu_detection};
 pub mod automatic;
 pub mod dummy;
 
+#[allow(unused)]
 #[derive(Default, Clone)]
 pub struct Usage {
     pub cnt: u64,

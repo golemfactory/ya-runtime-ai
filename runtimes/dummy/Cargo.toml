@@ -8,9 +8,12 @@ build = "../../build.rs"
 [dependencies]
 actix-web = "4.9"
 anyhow = "1.0"
+base64 = "0.22"
 env_logger = "0.11.5"
 humantime = "2.1"
 humantime-serde = "1.1"
+image = "0.25"
+num-complex = "0.4.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 log = "0.4"
