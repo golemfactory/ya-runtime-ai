@@ -10,7 +10,7 @@ on:
     branches: [ "main" ]
 env:
   CARGO_TERM_COLOR: always
-  rust_stable: 1.76.0
+  rust_stable: 1.79.0
 
 jobs:
   check_format:
