@@ -47,14 +47,14 @@ async fn text2img(params: web::Json<Text2ImageBody>) -> impl Responder {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct GenerateTrafficQuery {
+struct GenerateTrafficBody {
     #[serde(with = "humantime_serde")]
     pub sleep_time: Duration,
     pub response_size: u64,
 }
 
-#[get("/generate-traffic")]
-async fn generate_traffic(info: web::Query<GenerateTrafficQuery>) -> impl Responder {
+#[post("/generate-traffic")]
+async fn generate_traffic(info: web::Json<GenerateTrafficBody>) -> impl Responder {
     log::info!(
         "Endpoint: generate-traffic. Sleep time: {}. Response size: {}",
         humantime::format_duration(info.sleep_time),
