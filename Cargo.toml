@@ -10,15 +10,15 @@ members = [
 ]
 
 [dependencies]
-ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47" }
-ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47", features = ["activity", "appkey"] }
-ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47" }
-ya-utils-process = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47" }
+ya-gsb-http-proxy = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.49" }
+ya-core-model = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.49", features = ["activity", "appkey"] }
+ya-runtime-api = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.49" }
+ya-utils-process = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.49" }
 ya-service-bus = "0.7.3"
 ya-client-model = "0.7"
 ya-agreement-utils = "0.5"
-ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47" }
-ya-counters = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.47" }
+ya-transfer = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.49" }
+ya-counters = { git = "https://github.com/golemfactory/yagna.git", rev = "pre-rel-v0.16.0-preview.ai.49" }
 gpu-detection = { path = "gpu-detection" }
 
 actix = "0.13"
